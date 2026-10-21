@@ -87,13 +87,20 @@ của First Prompt (ý trùng giữa các đoạn, chuẩn/size/màu khớp gi�
 other features đúng luật, Section ownership). Ghi kết quả vào `# SELF-CHECK`, trả draft cho người
 dùng.
 
-### 6. HTML (sau "Tạo bản HTML")
+### 6. HTML và tệp nộp (sau "Tạo bản HTML")
 
 ```bash
-py -3 ${CLAUDE_SKILL_DIR}/scripts/to_html.py "$OUT/NNN-<slug>/draft.md"
+py -3 ${CLAUDE_SKILL_DIR}/scripts/to_html.py "$OUT/NNN-<slug>/draft.md" --submit
 ```
 
-Ghi `draft.html`. Không tự viết HTML. Nhắc: chép bản text và HTML vào doc (2 tab), click thử link.
+Ghi `draft.html` (bản xem, có chú thích) và hai tệp nộp: `ban-text.html` (mở bằng trình duyệt →
+Ctrl+A → dán vào tab **Text** của Google Doc; gồm H1, dòng "Meta Description:", nội dung; không có
+DRAFT INFO/SELF-CHECK) và `ban-html.txt` (code sạch cho tab **HTML**). Không tự viết HTML.
+
+**Nộp (Bước 10 của writer guide):** mỗi sản phẩm 1 Google Doc, 2 tab Text/HTML, đặt trong
+Folder Riding Body Protector, dán link doc vào cột I của sheet DE | CONTENT | ONPAGE | RIDING BODY
+PROTECTORS (link trong `writer-guide.md`). Claude không tạo được Google Doc: hướng dẫn người dùng
+dán hai tệp trên, và nhắc click thử từng link.
 
 ## Hàng loạt ("làm STT 5–20")
 

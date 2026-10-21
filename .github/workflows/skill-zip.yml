@@ -1,0 +1,38 @@
+name: skill-zip
+
+# Claude Code users get updates straight from main (plugin auto-update).
+# claude.ai chat users upload a zip instead: this keeps a "skill-latest"
+# release whose pdp-content.zip always matches main.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+      - 'tools/build_skill_zip.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Self-checks must pass before publishing
+        run: python tests/run_tests.py
+      - name: Build zip
+        run: python tools/build_skill_zip.py
+      - name: Publish to the skill-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete skill-latest --yes --cleanup-tag || true
+          gh release create skill-latest dist/pdp-content.zip \
+            --title "pdp-content skill (bản mới nhất từ main)" \
+            --notes "Commit ${GITHUB_SHA::12}. Tải pdp-content.zip để upload lên claude.ai (Customize > Skills). Claude Code tự cập nhật, không cần tệp này." \
+            --latest

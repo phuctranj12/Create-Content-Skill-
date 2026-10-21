@@ -17,7 +17,8 @@ import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SKILL = os.path.join(ROOT, "skills", "pdp-content")
+PLUGIN = os.path.join(ROOT, "plugins", "create-content")
+SKILL = os.path.join(PLUGIN, "skills", "pdp-content")
 FIX = os.path.join(ROOT, "tests", "fixtures")
 sys.path.insert(0, os.path.join(SKILL, "scripts"))
 
@@ -313,6 +314,17 @@ class HtmlTests(unittest.TestCase):
         self.assertNotIn("DRAFT INFO", out)
         self.assertNotIn("check_draft.py", out)
 
+    def test_submit_files(self):
+        code = to_html.convert(GOOD, CFG, clean=True)
+        self.assertTrue(code.startswith("<h1>Racesafe VeloAir Air Gilet</h1>"))
+        self.assertNotIn("<!--", code)
+        self.assertNotIn("Meta Description", code)
+        page = to_html.submit_text_page(GOOD, CFG)
+        self.assertIn("<p><strong>Meta Description:</strong> Racesafe VeloAir Air Gilet:", page)
+        self.assertNotIn("DRAFT INFO", page)
+        self.assertNotIn("check_draft.py", page)
+        self.assertIn("<td>86.4-91.4</td>", page)
+
 
 class TemplateImportTests(unittest.TestCase):
     @unittest.skipUnless(os.path.isfile(TEMPLATE), "source template not present")
@@ -376,9 +388,21 @@ class PackagingTests(unittest.TestCase):
                 self.assertTrue(os.path.isfile(os.path.join(cfg["_dir"], name)), name)
 
     def test_plugin_manifests(self):
-        for name in ("plugin.json", "marketplace.json"):
-            with open(os.path.join(ROOT, ".claude-plugin", name), encoding="utf-8") as fh:
-                json.load(fh)
+        with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json"), encoding="utf-8") as fh:
+            market = json.load(fh)
+        with open(os.path.join(PLUGIN, ".claude-plugin", "plugin.json"), encoding="utf-8") as fh:
+            plugin = json.load(fh)
+        entry = next(e for e in market["plugins"] if e["name"] == plugin["name"])
+        self.assertEqual(os.path.normpath(os.path.join(ROOT, entry["source"])), os.path.normpath(PLUGIN))
+        # No pinned version anywhere: Claude Code then versions the plugin by the
+        # commit SHA of its directory, so every push to main that touches the
+        # plugin reaches users with auto-update on. A pinned "version" would
+        # freeze them until someone remembers to bump it.
+        self.assertNotIn("version", plugin)
+        self.assertNotIn("version", entry)
+        # Only plugin files ship: tests, sources and tooling stay outside.
+        self.assertFalse(os.path.exists(os.path.join(PLUGIN, "tests")))
+        self.assertFalse(os.path.exists(os.path.join(PLUGIN, "source")))
 
 
 if __name__ == "__main__":

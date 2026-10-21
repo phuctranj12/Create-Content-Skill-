@@ -25,3 +25,15 @@ Chỉ gồm những điều **không** có trong `first-prompt.md` / `file1-gene
 hướng dẫn sử dụng/bảo quản/bảo hành của đúng sản phẩm) **và** trang sản phẩm trên
 discount-equestrian.co.uk (Product URL). Không lấy trang đại lý khác. Đoạn brand trong About
 **không** dùng nguồn này mà chỉ dùng cột Brand background.
+
+Kinh nghiệm thực tế:
+
+- **Trang DE chặn truy cập tự động (HTTP 403).** Đừng thử lại; xin người dùng mở trang, Ctrl+A,
+  Ctrl+C và dán. Breadcrumb của trang DE (vd. *Body Protectors › Air Jackets and Air Vests*) là
+  bằng chứng tốt để chốt loại sản phẩm.
+- **Size chart của hãng thường là ảnh hoặc chạy bằng JavaScript**, máy không đọc được. Dùng cột Size
+  guide của File (2) (người thu thập đã gõ lại từ ảnh), đánh dấu ✱ và xin ảnh chụp để đối chiếu.
+- **Trang DE mâu thuẫn trang nhà sản xuất** (vùng bảo vệ, cách vệ sinh…): theo **nhà sản xuất**,
+  ghi vào Conflict. Không dùng câu quảng cáo của trang DE ngụ ý dùng thi đấu, tên vận động viên, hay
+  so sánh "fastest/among the best" không có nguồn hãng.
+- Trang DE hay có ký tự "—": không chép kèm.

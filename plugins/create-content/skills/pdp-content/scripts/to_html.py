@@ -8,6 +8,12 @@ Converts by code so the HTML is a faithful copy of the checked draft and
 costs no output tokens. DRAFT INFO and SELF-CHECK are dropped, H1 -> <h1>,
 Meta Description -> a comment on top; ## -> <h2>, paragraphs -> <p>, - -> <ul><li>,
 pipe tables -> <table>, **b** -> <strong>, [text](url) -> <a href>. No styling.
+
+    py -3 to_html.py output/004-x/draft.md --submit  # + ban-text.html, ban-html.txt
+
+--submit writes the two files to hand in (Step 10): ban-text.html to open in a
+browser and copy into the "Text" tab of the Google Doc, and ban-html.txt (clean
+code: h1, short and long description, no comments) for the "HTML" tab.
 """
 
 import argparse
@@ -77,7 +83,7 @@ def block_html(lines):
     return "\n".join(out)
 
 
-def convert(text, cfg):
+def sections_of(text, cfg):
     names = {pdplib.norm_header(v): (k, v) for k, v in cfg["draft"]["blocks"].items()}
     sections, current = [], None
     for line in text.splitlines():
@@ -87,19 +93,53 @@ def convert(text, cfg):
             sections.append((current, []))
         elif current:
             sections[-1][1].append(line)
+    return sections
+
+
+def convert(text, cfg, clean=False):
+    """Review HTML (section comments, Meta Description as a comment) or, with
+    clean=True, the code to submit: only h1, short and long description."""
     out = []
     keep = cfg["draft"]["html_blocks"]
-    for (key, title), lines in sections:
+    for (key, title), lines in sections_of(text, cfg):
         text = " ".join(l.strip() for l in lines if l.strip())
         if key == "meta":
-            out.insert(0, "<!-- Meta Description: %s -->\n" % text.replace("--", "-"))
+            if not clean:
+                out.insert(0, "<!-- Meta Description: %s -->\n" % text.replace("--", "-"))
         elif key == "h1":
-            out.append("<h1>%s</h1>\n" % inline(text))
+            out.append("<h1>%s</h1>" % inline(text) + ("" if clean else "\n"))
         elif key in keep:
-            out.append("<!-- ===== %s ===== -->" % title)
+            if not clean:
+                out.append("<!-- ===== %s ===== -->" % title)
             out.append(block_html(lines))
-            out.append("")
-    return "\n".join(out)
+            if not clean:
+                out.append("")
+    return "\n".join(out).strip() + "\n"
+
+
+PAGE = """<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>%s</title>
+<style>body{font-family:Arial,sans-serif;max-width:860px;margin:32px auto;padding:0 16px;line-height:1.5}
+table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px 8px;text-align:left}</style>
+</head><body>
+%s
+</body></html>
+"""
+
+
+def submit_text_page(text, cfg):
+    """A page to open in a browser and copy (Ctrl+A, Ctrl+C) into the Text tab
+    of the Google Doc: H1, a 'Meta Description:' line, then the content."""
+    meta, title = "", ""
+    for (key, _), lines in sections_of(text, cfg):
+        if key == "meta":
+            meta = " ".join(l.strip() for l in lines if l.strip())
+        elif key == "h1":
+            title = " ".join(l.strip() for l in lines if l.strip())
+    body = convert(text, cfg, clean=True)
+    body = body.replace("</h1>", "</h1>\n<p><strong>Meta Description:</strong> %s</p>"
+                        % html.escape(meta, quote=False), 1)
+    return PAGE % (html.escape(title), body)
 
 
 def main(argv=None):
@@ -110,10 +150,20 @@ def main(argv=None):
     ap.add_argument("--category", default="riding-body-protector")
     ap.add_argument("--out", help="mặc định: draft.html cạnh draft.md")
     ap.add_argument("--stdout", action="store_true")
+    ap.add_argument("--submit", action="store_true",
+                    help="ghi thêm ban-text.html (dán vào tab Text) và ban-html.txt (tab HTML)")
     args = ap.parse_args(argv)
     cfg = pdplib.load_category(args.category)
     with open(args.draft, encoding="utf-8") as fh:
-        result = convert(fh.read(), cfg)
+        source = fh.read()
+    result = convert(source, cfg)
+    if args.submit:
+        folder = os.path.dirname(os.path.abspath(args.draft))
+        for name, content in (("ban-text.html", submit_text_page(source, cfg)),
+                              ("ban-html.txt", convert(source, cfg, clean=True))):
+            with open(os.path.join(folder, name), "w", encoding="utf-8") as fh:
+                fh.write(content)
+            print("→ %s" % os.path.join(folder, name))
     if args.stdout:
         print(result)
         return 0
