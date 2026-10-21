@@ -1,0 +1,22 @@
+{
+  "name": "create-content",
+  "displayName": "Create Content — PDP hàng loạt",
+  "description": "Sản xuất nội dung trang sản phẩm (PDP) hàng loạt cho discount-equestrian.co.uk theo quy trình chuẩn: đọc File (2), tính sẵn outline/About/{Role}/link, phân tích conflict, viết draft, tự kiểm bằng script và xuất HTML.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Phuc Tran Tuan",
+    "email": "phuc.trantuan@hawee.com.vn"
+  },
+  "homepage": "https://github.com/phuctranj12/Create-Content-Skill-",
+  "repository": "https://github.com/phuctranj12/Create-Content-Skill-",
+  "license": "MIT",
+  "keywords": [
+    "content",
+    "pdp",
+    "product-description",
+    "ecommerce",
+    "seo",
+    "equestrian",
+    "body-protector"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://code.claude.com/schema/marketplace.json",
+  "name": "hawee-content",
+  "description": "Skill sản xuất nội dung dùng cho Claude Code",
+  "owner": {
+    "name": "Phuc Tran Tuan",
+    "email": "phuc.trantuan@hawee.com.vn",
+    "url": "https://github.com/phuctranj12"
+  },
+  "plugins": [
+    {
+      "name": "create-content",
+      "displayName": "Create Content — PDP hàng loạt",
+      "source": "./",
+      "description": "Sản xuất nội dung trang sản phẩm (PDP) hàng loạt cho discount-equestrian.co.uk theo quy trình chuẩn, bắt đầu với Riding Body Protector.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Phuc Tran Tuan"
+      },
+      "homepage": "https://github.com/phuctranj12/Create-Content-Skill-",
+      "repository": "https://github.com/phuctranj12/Create-Content-Skill-",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["content", "pdp", "product-description", "ecommerce", "equestrian"]
+    }
+  ]
+}
