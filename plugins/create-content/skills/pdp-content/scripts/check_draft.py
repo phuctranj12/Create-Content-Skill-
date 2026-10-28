@@ -23,6 +23,7 @@ import os
 import re
 import sys
 
+import generic
 import pdplib
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
@@ -551,7 +552,7 @@ def main(argv=None):
     ap.add_argument("--file2", required=True)
     ap.add_argument("--stt", required=True, type=int)
     ap.add_argument("--category", default="riding-body-protector")
-    ap.add_argument("--type", choices=["body", "back", "air", "accessory"])
+    ap.add_argument("--type", help="khoá trong 'types' của category.json")
     ap.add_argument("--serves", choices=["body", "back", "air"])
     ap.add_argument("--brand-info", help="tệp THÔNG TIN TỪ BRAND (để bắt feature bịa)")
     ap.add_argument("--history", help="thư mục output chứa các <STT>-*/draft.md đã làm")
@@ -560,7 +561,10 @@ def main(argv=None):
     cfg = pdplib.load_category(args.category)
     products, _ = pdplib.load_products(args.file2, cfg)
     p = pdplib.find_product(products, args.stt)
-    a = pdplib.analyse(p, products, cfg, serves_override=args.serves, type_override=args.type)
+    if cfg.get("engine") == "generic":
+        a = generic.analyse(p, products, cfg, args.type)
+    else:
+        a = pdplib.analyse(p, products, cfg, serves_override=args.serves, type_override=args.type)
     if a["type"] is None or a["block"]:
         print("BLOCK: " + " | ".join(a["block"]))
         return 1
@@ -570,7 +574,11 @@ def main(argv=None):
     if args.brand_info:
         with open(args.brand_info, encoding="utf-8") as fh:
             brand = fh.read()
-    rep = check(text, p, a, cfg, brand, load_history(args.history, p, a, products))
+    if cfg.get("engine") == "generic":
+        rep = generic.check(text, p, a, cfg, brand,
+                            generic.load_history(args.history, p, products, args.draft))
+    else:
+        rep = check(text, p, a, cfg, brand, load_history(args.history, p, a, products))
     order = {"ERROR": 0, "WARN": 1, "NOTE": 2}
     for kind, line, msg in sorted(rep.items, key=lambda x: (order[x[0]], x[1])):
         print("%s%s %s" % (kind, (" L%d" % line) if line else "", msg))

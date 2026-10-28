@@ -18,6 +18,7 @@ import json
 import os
 import sys
 
+import generic
 import pdplib
 
 
@@ -85,8 +86,8 @@ def main(argv=None):
     ap.add_argument("--list", action="store_true", help="một dòng mỗi sản phẩm")
     ap.add_argument("--stt", help="ví dụ 4 | 4,5,9 | 4-12")
     ap.add_argument("--brief", action="store_true", help="chỉ phần luật, không in cột dữ liệu")
-    ap.add_argument("--type", choices=["body", "back", "air", "accessory"],
-                    help="loại sản phẩm đã được người duyệt chốt (khi Product Type không rõ)")
+    ap.add_argument("--type", help="loại sản phẩm đã được người duyệt chốt (khi Product Type "
+                    "không rõ): khoá trong 'types' của category.json, vd air | riding_hat")
     ap.add_argument("--serves", choices=["body", "back", "air"],
                     help="phụ kiện phục vụ loại nào (khi script không tự suy ra)")
     ap.add_argument("--format", choices=["md", "json"], default="md")
@@ -95,12 +96,20 @@ def main(argv=None):
 
     cfg = pdplib.load_category(args.category)
     products, labels = pdplib.load_products(args.file2, cfg)
+    if args.type and args.type not in cfg["types"]:
+        ap.error("--type phải là một trong: %s" % ", ".join(cfg["types"]))
+    if cfg.get("engine") == "generic":
+        analyse = lambda p, **kw: generic.analyse(p, products, cfg, kw.get("type_override"))
+        card = generic.card_markdown
+    else:
+        analyse = lambda p, **kw: pdplib.analyse(p, products, cfg, **kw)
+        card = card_markdown
 
     if args.list or not args.stt:
         blocked = 0
         print("STT | Loại→Outline | About | Focus | Sản phẩm | Vấn đề")
         for p in products:
-            a = pdplib.analyse(p, products, cfg)
+            a = analyse(p)
             blocked += bool(a["block"])
             flag = ("BLOCK %d" % len(a["block"])) if a["block"] else ""
             if a["check"]:
@@ -118,19 +127,18 @@ def main(argv=None):
     results = []
     for stt in stts:
         p = pdplib.find_product(products, stt)
-        a = pdplib.analyse(p, products, cfg, serves_override=args.serves,
-                           type_override=args.type)
+        a = analyse(p, serves_override=args.serves, type_override=args.type)
         blocked = blocked or bool(a["block"])
         if args.format == "json":
             results.append({"product": {k: v for k, v in p.items() if not k.startswith("_")},
                             "rules": a})
             continue
-        print(card_markdown(p, a, cfg, labels, brief=args.brief) + "\n")
+        print(card(p, a, cfg, labels, brief=args.brief) + "\n")
         if args.workdir and a["type"] is not None:
             d = pdplib.product_dir(args.workdir, p)
             os.makedirs(d, exist_ok=True)
             with open(os.path.join(d, "card.md"), "w", encoding="utf-8") as fh:
-                fh.write(card_markdown(p, a, cfg, labels) + "\n")
+                fh.write(card(p, a, cfg, labels) + "\n")
             print("→ %s" % d)
     if args.format == "json":
         print(json.dumps(results, ensure_ascii=False, indent=1))
