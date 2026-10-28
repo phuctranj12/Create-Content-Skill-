@@ -2,8 +2,11 @@
 
 Skill cho [Claude Code](https://claude.com/claude-code) giúp **sản xuất nội dung trang sản phẩm
 (PDP) hàng loạt** cho discount-equestrian.co.uk theo đúng quy trình của team content (PDP
-Template, File (1), File (2), First Prompt). Ngành hàng đầu tiên: **Riding Body Protector**
-(body protector, back protector, air vest, phụ kiện).
+Template, File (1), File (2), First Prompt). Ngành hàng hiện có: **Riding Body Protector**
+(body protector, back protector, air vest, phụ kiện) và **Riding Hat** (Riding Hat, Hat Silks &
+Covers, Liners & Parts, Helmet Accessories). Ngành mới thêm bằng một thư mục cấu hình trong
+`categories/` (engine `generic`, không sửa code); luật áp dụng cho mọi ngành nằm ở
+`common/universal-rules.md`.
 
 Skill chuyển phần việc lặp lại sang script, để Claude chỉ làm phần cần phán đoán:
 
@@ -90,6 +93,10 @@ Nên bật branch protection cho main (Settings › Branches) với điều ki�
    `Tạo nội dung` → `Tạo bản HTML`.
 3. Hàng loạt: `Làm STT 5–20`. Mọi vấn đề của File (2) và mọi conflict được gom thành **một** danh
    sách để quyết một lần; draft được viết tuần tự theo STT.
+
+Trước khi làm hàng loạt, đọc [Hạn chế của skill và cách chuẩn bị dữ liệu](docs/han-che-va-chuan-bi-du-lieu.md):
+web DE chặn máy nên dữ liệu phải nằm sẵn trong File (2), và bài dán vào Google Doc nên gửi lại link
+để kiểm.
 
 Kết quả mỗi sản phẩm nằm ở `output/<ngành>/<STT>-<tên>/`:
 - `card.md`, `brand-info.txt`, `analysis.md`, `draft.md`, `draft.html`;

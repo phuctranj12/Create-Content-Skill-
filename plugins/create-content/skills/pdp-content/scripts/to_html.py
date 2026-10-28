@@ -52,6 +52,9 @@ def block_html(lines):
         line = lines[i].rstrip()
         if not line.strip():
             i += 1
+        elif line.startswith("### "):
+            out.append("<h3>%s</h3>" % inline(line[4:].strip()))
+            i += 1
         elif line.startswith("## "):
             out.append("<h2>%s</h2>" % inline(line[3:].strip()))
             i += 1
@@ -75,7 +78,7 @@ def block_html(lines):
             out.append("\n".join(t))
         else:
             para = []
-            while i < len(lines) and lines[i].strip() and not lines[i].startswith("## ") \
+            while i < len(lines) and lines[i].strip() and not lines[i].startswith("##") \
                     and not re.match(r"^\s*[-*]\s+", lines[i]) and not lines[i].lstrip().startswith("|"):
                 para.append(lines[i].strip())
                 i += 1
@@ -103,9 +106,10 @@ def convert(text, cfg, clean=False):
     keep = cfg["draft"]["html_blocks"]
     for (key, title), lines in sections_of(text, cfg):
         text = " ".join(l.strip() for l in lines if l.strip())
-        if key == "meta":
+        if key in ("meta", "meta_title"):
             if not clean:
-                out.insert(0, "<!-- Meta Description: %s -->\n" % text.replace("--", "-"))
+                label = "Meta title" if key == "meta_title" else "Meta Description"
+                out.insert(0, "<!-- %s: %s -->\n" % (label, text.replace("--", "-")))
         elif key == "h1":
             out.append("<h1>%s</h1>" % inline(text) + ("" if clean else "\n"))
         elif key in keep:
@@ -130,16 +134,44 @@ table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px 8px;text-
 def submit_text_page(text, cfg):
     """A page to open in a browser and copy (Ctrl+A, Ctrl+C) into the Text tab
     of the Google Doc: H1, a 'Meta Description:' line, then the content."""
-    meta, title = "", ""
-    for (key, _), lines in sections_of(text, cfg):
-        if key == "meta":
-            meta = " ".join(l.strip() for l in lines if l.strip())
-        elif key == "h1":
-            title = " ".join(l.strip() for l in lines if l.strip())
+    metas = meta_lines(text, cfg)
+    title = metas.pop("h1", "")
+    head = "".join("\n<p><strong>%s:</strong> %s</p>" % (label, html.escape(value, quote=False))
+                   for label, value in metas.items())
     body = convert(text, cfg, clean=True)
-    body = body.replace("</h1>", "</h1>\n<p><strong>Meta Description:</strong> %s</p>"
-                        % html.escape(meta, quote=False), 1)
+    body = body.replace("</h1>", "</h1>" + head, 1)
     return PAGE % (html.escape(title), body)
+
+
+def meta_lines(text, cfg):
+    """H1 plus the meta blocks the category has, in page order."""
+    found = {}
+    for (key, _), lines in sections_of(text, cfg):
+        found[key] = " ".join(l.strip() for l in lines if l.strip())
+    out = {"h1": found.get("h1", "")}
+    for key, label in (("meta_title", "Meta title"), ("meta", "Meta Description")):
+        if key in found:
+            out[label] = found[key]
+    return out
+
+
+def submit_html(text, cfg):
+    """Code for the HTML tab. When the category has a Meta title block (writer
+    guide Step 10: metas as plain text, then H1 / Short / Long code blocks),
+    the metas go on top, then each block under its own label."""
+    if "meta_title" not in cfg["draft"]["blocks"]:
+        return convert(text, cfg, clean=True)
+    metas = meta_lines(text, cfg)
+    metas.pop("h1")
+    out = ["%s: %s" % kv for kv in metas.items()]
+    names = {"h1": "H1", "short": "Short description", "long": "Long description"}
+    for (key, _), lines in sections_of(text, cfg):
+        if key == "h1":
+            h1 = " ".join(l.strip() for l in lines if l.strip())
+            out += ["", "[H1]", "<h1>%s</h1>" % inline(h1)]
+        elif key in cfg["draft"]["html_blocks"]:
+            out += ["", "[%s]" % names.get(key, key), block_html(lines)]
+    return "\n".join(out).strip() + "\n"
 
 
 def main(argv=None):
@@ -160,7 +192,7 @@ def main(argv=None):
     if args.submit:
         folder = os.path.dirname(os.path.abspath(args.draft))
         for name, content in (("ban-text.html", submit_text_page(source, cfg)),
-                              ("ban-html.txt", convert(source, cfg, clean=True))):
+                              ("ban-html.txt", submit_html(source, cfg))):
             with open(os.path.join(folder, name), "w", encoding="utf-8") as fh:
                 fh.write(content)
             print("→ %s" % os.path.join(folder, name))

@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(SKILL, "scripts"))
 
 import pdplib  # noqa: E402
 import check_draft  # noqa: E402
+import generic  # noqa: E402
 import to_html  # noqa: E402
 import product  # noqa: E402
 import import_template  # noqa: E402
@@ -350,6 +351,123 @@ class TemplateImportTests(unittest.TestCase):
             self.assertTrue(text.startswith("The [Product] is supplied by discount-equestrian.co.uk, {Role} "))
 
 
+RH_CFG = pdplib.load_category("riding-hat")
+RH_FILE2 = os.path.join(FIX, "riding-hat", "file2.xlsx")
+RH_PRODUCTS, RH_LABELS = pdplib.load_products(RH_FILE2, RH_CFG)
+
+
+def rh(stt):
+    p = pdplib.find_product(RH_PRODUCTS, stt)
+    return p, generic.analyse(p, RH_PRODUCTS, RH_CFG)
+
+
+def rh_check(text, stt):
+    p, a = rh(stt)
+    return generic.check(text, p, a, RH_CFG)
+
+
+class GenericEngineTests(unittest.TestCase):
+    """Riding Hat category: config-driven card and checks."""
+
+    def setUp(self):
+        self.no1 = read(os.path.join("riding-hat", "good-draft-no1.md"))
+        self.no2 = read(os.path.join("riding-hat", "good-draft-no2.md"))
+
+    def test_columns_with_alternative_headers(self):
+        p = RH_PRODUCTS[1]
+        self.assertEqual(p["stt"], 2)
+        self.assertEqual(p["brand"], "Charles Owen")
+        self.assertIn("52CM", p["sizes"])
+        self.assertIn("Navy", p["colours"])
+        self.assertTrue(p["part_type"] == "/" and RH_PRODUCTS[0]["part_type"] == "headband")
+        self.assertEqual(RH_PRODUCTS[0]["part_cleaning"][:4], "Wash")
+
+    def test_template_and_variant(self):
+        _, a1 = rh(1)
+        _, a2 = rh(2)
+        self.assertEqual((a1["type"], a1["variant"]), ("liners", "E"))
+        self.assertEqual((a2["type"], a2["variant"]), ("riding_hat", "F"))
+        self.assertEqual(a1["product_type"], "replacement headbands")
+        self.assertIn("[discount-equestrian.co.uk](https://www.discount-equestrian.co.uk/)",
+                      a2["supplier"])
+
+    def test_variant_rules_order(self):
+        base = dict(RH_PRODUCTS[1])
+        for stt, brand, children, shape, want in (
+                (7, "Charles Owen", "no", "peaked", "E"), (10, "Charles Owen", "no", "peaked", "A"),
+                (8, "uvex", "yes", "peaked", "F"), (9, "KASK", "no", "jockey skull", "C"),
+                (58, "uvex", "no", "peaked", "A"), (59, "uvex", "no", "peaked", "B"),
+                (60, "uvex", "no", "peaked", "D")):
+            p = dict(base, stt=stt, brand=brand, children_range=children, shape=shape)
+            self.assertEqual(generic.analyse(p, RH_PRODUCTS, RH_CFG)["variant"], want, stt)
+
+    def test_size_phrase_only_sold_sizes(self):
+        _, a = rh(2)
+        self.assertEqual(a["size_phrase"], "6⅜ to 6⅝ (52 to 54cm), plus 7¼ (59cm) in a round fit")
+        _, a = rh(1)
+        self.assertEqual(a["size_phrase"], "52 to 62cm, plus 56 to 58cm in a round fit")
+
+    def test_good_drafts_pass(self):
+        for text, stt in ((self.no1, 1), (self.no2, 2)):
+            rep = rh_check(text, stt)
+            self.assertEqual(rep.errors(), [], stt)
+
+    def test_reviewer_findings_are_caught(self):
+        bad = self.no2.replace("Available in sizes 6⅜ to 6⅝ (52 to 54cm), plus 7¼ (59cm) in a round fit,",
+                               "Available in sizes from 52 to 59 cm (6⅜ to 7¼),")
+        bad = bad.replace("**Colour:** Black, Black - Charcoal and Navy.",
+                          "**Colour:** Choose from Black or Navy.")
+        bad = bad.replace("[discount-equestrian.co.uk](https://www.discount-equestrian.co.uk/)",
+                          "discount-equestrian.co.uk")
+        errs = " | ".join(rh_check(bad, 2).errors())
+        self.assertIn("ngụ ý DE bán cả 55cm", errs)
+        self.assertIn("choose from", errs)
+        self.assertIn("thiếu: Black - Charcoal", errs)
+        self.assertIn("link về trang chủ", errs)
+
+    def test_writer_edits_in_doc_are_caught(self):
+        # what the writer pasted back: round fit dropped ("all round" elsewhere is not a mention),
+        # home link auto-linked by Google Docs as http:// without www
+        bad = self.no2.replace("plus 7¼ (59cm) in a round fit,", "plus 7¼ (59cm),")
+        bad = bad.replace("(https://www.discount-equestrian.co.uk/)", "(http://discount-equestrian.co.uk)")
+        self.assertIn("all round", bad)
+        errs = " | ".join(rh_check(bad, 2).errors())
+        self.assertIn("không nhắc round fit", errs)
+        self.assertIn("link về trang chủ", errs)
+
+    def test_meta_title_suffix_rule(self):
+        errs = " | ".join(rh_check(self.no1.replace(
+            "# META TITLE\nCharles Owen My PS Replacement Headband\n",
+            "# META TITLE\nCharles Owen My PS Replacement Headband | Discount Equestrian\n"),
+            1).errors())
+        self.assertIn("Meta title phải là 'Charles Owen My PS Replacement Headband'", errs)
+
+    def test_accessory_safety_wording_and_dash(self):
+        bad = self.no1.replace("for a cleaner, fresher feel", "for a safer — fresher feel")
+        errs = " | ".join(rh_check(bad, 1).errors())
+        self.assertIn("gạch dài", errs)
+        self.assertIn("Phụ kiện", errs)
+
+    def test_made_in_uk_and_dressage(self):
+        bad = self.no2.replace("smart, sophisticated look.",
+                               "smart look, made in the UK and accepted by British Dressage.")
+        errs = " | ".join(rh_check(bad, 2).errors())
+        self.assertIn("made in the uk", errs)
+        self.assertIn("British Dressage", errs)
+
+    def test_card_and_submit_files(self):
+        p, a = rh(2)
+        card = generic.card_markdown(p, a, RH_CFG, RH_LABELS)
+        self.assertIn("Black, Black - Charcoal, Navy", card)
+        self.assertIn("DE variant **F**", card)
+        page = to_html.submit_text_page(self.no2, RH_CFG)
+        self.assertIn("<strong>Meta title:</strong>", page)
+        self.assertIn("<h3>Safety standards &amp; certification</h3>", page)
+        code = to_html.submit_html(self.no2, RH_CFG)
+        self.assertTrue(code.startswith("Meta title: Charles Owen YR8 Riding Hat | Discount Equestrian"))
+        self.assertNotIn("DRAFT INFO", code)
+
+
 class PackagingTests(unittest.TestCase):
     def test_frontmatter(self):
         with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as fh:
@@ -373,6 +491,9 @@ class PackagingTests(unittest.TestCase):
         for slug in pdplib.list_categories():
             cfg = pdplib.load_category(slug)
             cols = set(cfg["columns"])
+            if cfg.get("engine") == "generic":
+                self.check_generic_config(cfg, cols)
+                continue
             for key in cfg["required_columns"] + cfg["card_columns"]:
                 self.assertIn(key, cols)
             for key, t in cfg["types"].items():
@@ -386,6 +507,26 @@ class PackagingTests(unittest.TestCase):
             for name in ("first-prompt.md", "file1-general.md", "analysis-template.md",
                          "draft-format.md", "rules.md"):
                 self.assertTrue(os.path.isfile(os.path.join(cfg["_dir"], name)), name)
+
+    def check_generic_config(self, cfg, cols):
+        for key in cfg["required_columns"] + cfg["common_card_columns"] + cfg["de_owned"]:
+            self.assertIn(key, cols)
+        self.assertEqual(sorted(cfg["detect_order"]), sorted(cfg["types"]))
+        variants = generic.load_variants(cfg)
+        for rule in cfg["variant_rules"]:
+            for v in [rule.get("variant")] + list(rule.get("mod3", {}).values()):
+                if v:
+                    self.assertIn(v, variants)
+        for key, t in cfg["types"].items():
+            for col in t["columns"]:
+                self.assertIn(col, cols)
+            self.assertTrue(t["h2"][-1][0] == "About the brand" and t["h2"][-1][1])
+            self.assertEqual(t["bullets"][0], "Type")
+        for link in cfg["links"]:
+            self.assertTrue(set(link["types"]) <= set(cfg["types"]), link["key"])
+        for name in ("first-prompt.md", "template.md", "checklist.md", "analysis-template.md",
+                     "draft-format.md", "rules.md", "variants.json"):
+            self.assertTrue(os.path.isfile(os.path.join(cfg["_dir"], name)), name)
 
     def test_plugin_manifests(self):
         with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json"), encoding="utf-8") as fh:

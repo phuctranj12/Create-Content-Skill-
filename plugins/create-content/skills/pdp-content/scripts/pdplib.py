@@ -148,6 +148,11 @@ def load_category(slug):
 
 
 # --- Products ---------------------------------------------------------------
+def column_label(cfg, key):
+    wanted = cfg["columns"][key]
+    return " / ".join(wanted) if isinstance(wanted, list) else wanted
+
+
 def load_products(file2, cfg):
     """Products of File (2) as dicts keyed by the canonical column keys."""
     rows = read_sheet(file2, cfg.get("file2_sheet"))
@@ -157,17 +162,19 @@ def load_products(file2, cfg):
     labels = {}
     index = {}
     for key, wanted in cfg["columns"].items():
-        wanted = norm_header(wanted)
-        pos = next((i for i, h in enumerate(header) if h == wanted), None)
+        # A column may have several accepted headers (File (2) versions differ):
+        # every exact match is tried before any prefix match.
+        names = [norm_header(w) for w in (wanted if isinstance(wanted, list) else [wanted])]
+        pos = next((i for w in names for i, h in enumerate(header) if h == w), None)
         if pos is None:
-            pos = next((i for i, h in enumerate(header) if h.startswith(wanted)), None)
+            pos = next((i for w in names for i, h in enumerate(header) if h.startswith(w)), None)
         if pos is not None:
             index[key] = pos
             labels[key] = rows[0][pos].strip()
     missing = [k for k in cfg["required_columns"] if k not in index]
     if missing:
         raise SystemExit("File (2) thiếu cột: %s" % ", ".join(
-            cfg["columns"][k] for k in missing))
+            column_label(cfg, k) for k in missing))
 
     products = []
     order = 0
