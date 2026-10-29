@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Product card from File (2), with every rule-fixed value pre-computed.
 
+    py -3 product.py --file2 "File (2).xlsx" --preflight
     py -3 product.py --file2 "File (2).xlsx" --list
     py -3 product.py --file2 "File (2).xlsx" --stt 4
     py -3 product.py --file2 "File (2).xlsx" --stt 4-12 --brief
@@ -83,6 +84,8 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--file2", required=True, help="File (2) .xlsx")
     ap.add_argument("--category", default="riding-body-protector")
+    ap.add_argument("--preflight", action="store_true",
+                    help="nhắc người dùng hạn chế của skill + kiểm File (2) đủ dữ liệu chưa")
     ap.add_argument("--list", action="store_true", help="một dòng mỗi sản phẩm")
     ap.add_argument("--stt", help="ví dụ 4 | 4,5,9 | 4-12")
     ap.add_argument("--brief", action="store_true", help="chỉ phần luật, không in cột dữ liệu")
@@ -104,6 +107,14 @@ def main(argv=None):
     else:
         analyse = lambda p, **kw: pdplib.analyse(p, products, cfg, **kw)
         card = card_markdown
+
+    if args.preflight:
+        if cfg.get("engine") != "generic":
+            print(generic.reminder(cfg))
+            return 0
+        text, ready, total = generic.preflight(products, cfg, labels, analyse)
+        print(text)
+        return 0 if ready == total else 3
 
     if args.list or not args.stt:
         blocked = 0
@@ -139,6 +150,12 @@ def main(argv=None):
             os.makedirs(d, exist_ok=True)
             with open(os.path.join(d, "card.md"), "w", encoding="utf-8") as fh:
                 fh.write(card(p, a, cfg, labels) + "\n")
+            info = os.path.join(d, "brand-info.txt")
+            pasted = generic.brand_info_from_row(p)
+            if pasted and not os.path.isfile(info):
+                with open(info, "w", encoding="utf-8") as fh:
+                    fh.write(pasted)
+                print("→ brand-info.txt từ cột 'Nội dung trang web (dán)'")
             print("→ %s" % d)
     if args.format == "json":
         print(json.dumps(results, ensure_ascii=False, indent=1))

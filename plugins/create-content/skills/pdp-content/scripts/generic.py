@@ -730,6 +730,17 @@ def check(draft_text, p, a, cfg, brand_info=None, history=None, rep=None):
                 if contains_phrase(line, w):
                     rep.error(n, "Không xếp hạng / so sánh tiêu chuẩn ('%s')." % w)
 
+    # Numbers must come from a source: File (2) row, brand info, appendices
+    own, docs = source_text(p, a, cfg, brand_info)
+    # appendices (standards, competition bodies) vouch for years and codes only:
+    # a "3" or "5" is in every template, so small numbers must come from the product
+    known = set(numbers(own)) | set(v for v in numbers(docs) if len(v.split(".")[0]) >= 3)
+    for n, line in [(n, l) for k in ("meta", "short", "long") for n, l in blocks.get(k, [])]:
+        for v in numbers(plain(line)):
+            if v not in known:
+                rep.warn(n, "Số '%s' không có trong File (2) / brand-info / phụ lục: kiểm nguồn, "
+                         "không có thì bỏ." % v)
+
     # Earlier drafts (same thread replacement)
     for q, other in history or []:
         oblocks = parse_blocks(other, cfg)
@@ -771,3 +782,151 @@ def load_history(history_dir, p, products, draft_path=None):
             with open(path, encoding="utf-8") as fh:
                 out.append((by_stt[int(m.group(1))], fh.read()))
     return out
+
+
+# --- Sources ----------------------------------------------------------------
+# "one" left out: "one of", "one hat from every batch" are not counts to source
+NUMBER_WORDS = {w: str(i) for i, w in enumerate(
+    "two three four five six seven eight nine ten eleven twelve".split(), start=2)}
+
+
+def numbers(text):
+    """'3,200' -> '3200', 'three' -> '3'; years, sizes, standard codes alike."""
+    text = re.sub(r"\b(%s)\b" % "|".join(NUMBER_WORDS),
+                  lambda m: NUMBER_WORDS[m.group(1).lower()], text or "", flags=re.I)
+    return [x.replace(",", "") for x in re.findall(r"\d+(?:[.,]\d+)*", text)]
+
+
+def source_text(p, a, cfg, brand_info=None):
+    """(product's own sources, category appendices) as two texts."""
+    own = [v for v in p.values() if isinstance(v, str)]
+    own += [a.get("supplier") or "", a.get("size_phrase") or "", brand_info or ""]
+    docs = []
+    for name in cfg.get("source_docs", []):
+        path = os.path.join(cfg["_dir"], name)
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                docs.append(fh.read())
+    return "\n".join(own), "\n".join(docs)
+
+
+def brand_info_from_row(p):
+    """brand-info.txt built from the pasted page column, one '### <URL>' per page."""
+    text = (p.get("page_content") or "").strip()
+    if not filled(text):
+        return ""
+    out = []
+    for line in text.splitlines():
+        if re.match(r"^\s*https?://\S+\s*$", line):
+            out.append("\n### " + line.strip())
+        else:
+            out.append(line.rstrip())
+    body = "\n".join(out).strip()
+    if not body.startswith("###"):
+        body = "### File (2) · Nội dung trang web (dán)\n" + body
+    return body + "\n"
+
+
+def compat_mismatch(p):
+    """Compatible product URLs whose model is not in the Compatible hats list
+    (the '(DE: …)' part when present)."""
+    hats = p.get("compat_hats", "")
+    m = re.search(r"\(DE:\s*([^)]*)\)", hats)
+    models = split_list((m.group(1) if m else hats).replace(",", ";"))
+    urls = re.findall(r"https?://\S+", p.get("compat_urls", ""))
+    if not models or not urls:
+        return []
+    bad = []
+    for url in urls:
+        slug = set(re.split(r"[^a-z0-9]+", url.lower().rsplit("/", 1)[-1].replace(".html", "")))
+        if not any(all(w in slug for w in pdplib.words(mod)) for mod in models):
+            bad.append(url)
+    return bad
+
+
+# --- Preflight --------------------------------------------------------------
+CELL_LIMIT = 32767  # characters an Excel cell holds; a longer paste is cut
+
+
+def reminder(cfg):
+    path = os.path.join(os.path.dirname(cfg["_dir"]), os.pardir, "common", "nhac-nguoi-dung.md")
+    path = os.path.normpath(path)
+    if not os.path.isfile(path):
+        return ""
+    with open(path, encoding="utf-8") as fh:
+        return fh.read().strip()
+
+
+def preflight_issues(p, a, cfg, labels):
+    """[(level, message)] for one row; level 'THIẾU' stops a one-pass draft."""
+    out = []
+    need = lambda k: labels.get(k, pdplib.column_label(cfg, k))
+    for key in cfg.get("required_columns", []):
+        # "/" is the team's "not applicable" (a headband has no colour): only blank is missing
+        if pdplib.is_empty(p.get(key)):
+            out.append(("THIẾU", "ô '%s' trống" % need(key)))
+    if a["type"] is None:
+        out.append(("THIẾU", "Product type không khớp template nào: " + " ".join(a["block"])))
+        return out
+    out.extend(("THIẾU", b) for b in a["block"])
+    if filled(p.get("sizes")) and not parse_sizes(p["sizes"]):
+        out.append(("THIẾU", "Size không đọc được ('%s'): ghi dạng 52CM; 53CM; 59CM ROUND"
+                    % p["sizes"].strip()))
+    if "children" in labels and not filled(p.get("children")):
+        out.append(("THIẾU", "Children's sizes chưa ghi Y/N"))
+    t = cfg["types"][a["type"]]
+    cols = [c for c in t["columns"] if not c.startswith("compat")]
+    have = [c for c in cols if filled(p.get(c))]
+    pasted = filled(p.get("page_content"))
+    if len(have) < cfg.get("preflight_min_columns", 3) and not pasted:
+        out.append(("THIẾU", "chỉ %d/%d cột tính năng của %s có dữ liệu: dán nội dung trang "
+                    "brand vào cột 'Nội dung trang web (dán)'" % (len(have), len(cols), t["label"])))
+    elif not pasted:
+        out.append(("LƯU Ý", "chưa dán nội dung trang web: fit guide, care, lifespan chỉ viết "
+                    "được theo File (2), bài sẽ mỏng hơn bài mẫu"))
+    if len(p.get("page_content") or "") >= CELL_LIMIT - 1000:
+        out.append(("LƯU Ý", "ô 'Nội dung trang web (dán)' có %d ký tự, gần giới hạn %d của Excel: "
+                    "phần cuối có thể đã bị cắt; chỉ dán phần mô tả, thông số, size/fit guide, care"
+                    % (len(p["page_content"]), CELL_LIMIT)))
+    for url in compat_mismatch(p):
+        out.append(("HỎI", "Compatible product URL có %s nhưng model này không có trong "
+                    "Compatible hats: xác nhận DE có bán / brand có xác nhận không" % url))
+    dashes = sorted(set(labels.get(k, k).split(":")[0] for k, v in p.items()
+                        if isinstance(v, str) and any(ch in v for ch in "—–")))
+    if dashes:
+        out.append(("LƯU Ý", "có gạch dài trong ô: %s" % ", ".join(dashes)))
+    out.extend(("HỎI", c) for c in a["check"] if c.startswith("Duplicate Risk")
+               or "không khớp" in c)
+    return out
+
+
+def preflight(products, cfg, labels, analyse):
+    """Reminder + one line per product. Returns (markdown, ready, total)."""
+    out = [reminder(cfg), "", "## Kiểm tra File (2)", ""]
+    if "page_content" not in labels:
+        out.append("**Chưa có cột `Nội dung trang web (dán)`.** Thêm vào cuối File (2) nếu có "
+                   "sản phẩm bị báo thiếu dữ liệu tính năng.")
+        out.append("")
+    out.append("No. | Sản phẩm | Template | Dán trang | Trạng thái")
+    out.append("--- | --- | --- | --- | ---")
+    ready = 0
+    details = []
+    for p in products:
+        a = analyse(p)
+        issues = preflight_issues(p, a, cfg, labels)
+        stop = any(lvl == "THIẾU" for lvl, _ in issues)
+        ready += not stop
+        asks = sum(l == "HỎI" for l, _ in issues)
+        status = ("THIẾU %d" % sum(l == "THIẾU" for l, _ in issues) if stop else
+                  "HỎI %d" % asks if asks else "sẵn sàng, có lưu ý" if issues else "sẵn sàng")
+        out.append("%d | %s | %s | %s | %s" % (
+            p["stt"], p["name"], cfg["types"][a["type"]]["label"] if a["type"] else "?",
+            "có" if filled(p.get("page_content")) else "-", status))
+        if issues:
+            details.append("- **No. %d**: " % p["stt"] + "; ".join(
+                "%s: %s" % (lvl, msg) for lvl, msg in issues))
+    if details:
+        out += ["", "### Cần bổ sung / trả lời trước khi viết", ""] + details
+    out += ["", "%d/%d sản phẩm sẵn sàng viết một lần. THIẾU = phải bổ sung File (2); HỎI = "
+            "trả lời một lần cho cả đợt." % (ready, len(products))]
+    return "\n".join(out), ready, len(products)

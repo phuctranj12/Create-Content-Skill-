@@ -77,13 +77,15 @@
     "acc_care": ["Care:"],
     "compat_hats": ["Compatible hats"],
     "compat_not": ["Not compatible with"],
-    "compat_urls": ["Compatible product URL"]
+    "compat_urls": ["Compatible product URL"],
+    "page_content": ["Nội dung trang web (dán)", "Nội dung trang web", "Page content"]
   },
 
   "required_columns": ["name", "brand", "brand_info", "type", "colours", "sizes"],
   "common_card_columns": ["url", "brand_product_url", "brand_url", "type", "ranges", "dup",
                           "focus", "colours", "sizes", "children", "children_range",
-                          "care_guide", "brand_info"],
+                          "care_guide", "brand_info", "page_content"],
+  "source_docs": ["template.md", "first-prompt.md"],
 
   "de_owned": ["colours", "sizes", "children", "children_range", "ranges"],
 

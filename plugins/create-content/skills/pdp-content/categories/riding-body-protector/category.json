@@ -40,7 +40,8 @@
     "ts_air_bp_use": "Type-specific (Air vest): Body protector use",
     "ts_air_service": "Type-specific (Air vest): Servicing & warranty",
     "ts_acc_compat": "Type-specific (Accessory): Compatibility",
-    "ts_acc_spec": "Type-specific (Accessory): Specification"
+    "ts_acc_spec": "Type-specific (Accessory): Specification",
+    "page_content": ["Nội dung trang web (dán)", "Nội dung trang web", "Page content"]
   },
 
   "required_columns": ["name", "url", "differentiator", "focus", "brand",
@@ -49,7 +50,7 @@
   "card_columns": ["url", "differentiator", "focus", "brand", "brand_url", "type", "subtype",
                    "type_url", "rider", "colours", "size", "size_guide", "cert", "areas",
                    "use_cases", "fit", "closure", "movement", "weight", "breath", "other",
-                   "care", "lifespan", "brand_bg"],
+                   "care", "lifespan", "brand_bg", "page_content"],
 
   "default_type": "body",
   "types": {

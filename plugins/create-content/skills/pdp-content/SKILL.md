@@ -38,6 +38,18 @@ Không chắc ngành nào → nhìn tiêu đề cột File (2) / tên sản ph�
 `$F2` = đường dẫn File (2) (hỏi nếu chưa có). `$OUT` = `./output/<slug>`.
 Luôn đọc `common/universal-rules.md` cùng các tệp nền.
 
+## 0. Kiểm tra đầu vào (lần đầu nhận File (2), và trước mọi đợt hàng loạt)
+
+```bash
+py -3 ${CLAUDE_SKILL_DIR}/scripts/product.py --category <slug> --file2 "$F2" --preflight
+```
+
+In ra `common/nhac-nguoi-dung.md` (hạn chế của skill, cách thêm cột cuối **`Nội dung trang web
+(dán)`** để dán nội dung trang web mà máy không truy cập được) và bảng từng dòng: THIẾU / HỎI / LƯU Ý.
+**Đưa nguyên phần nhắc và bảng cho người dùng**, dừng chờ họ bổ sung File (2) và trả lời các HỎI
+một lần. Chỉ viết những dòng không còn THIẾU. Không tự lấy web để lấp chỗ thiếu: WebFetch trả bản
+tóm tắt, không phải nguyên văn, và trang DE trả 403.
+
 ## Quy trình một sản phẩm
 
 ### 1. Thẻ
@@ -52,10 +64,11 @@ vào mục Conflict / "Cần xử lý trước khi viết". File (2) không có 
 
 ### 2. THÔNG TIN TỪ BRAND
 
-Theo First prompt của category: người dùng dán sau "THÔNG TIN TỪ BRAND:", hoặc `brand-info.txt` đã
-có trong thư mục sản phẩm; chỉ tự lấy từ **website chính thức của hãng** khi category cho phép
-(riding-body-protector) hoặc người dùng yêu cầu. Lưu `brand-info.txt` (mỗi nguồn mở bằng
-`### <URL>`). Không viết từ trí nhớ.
+Ưu tiên cột `Nội dung trang web (dán)`: `product.py --workdir` tự ghi ô đó thành `brand-info.txt`.
+Không có thì người dùng dán sau "THÔNG TIN TỪ BRAND:"; chỉ tự lấy từ **website chính thức của
+hãng** khi category cho phép (riding-body-protector) hoặc người dùng yêu cầu. Lưu `brand-info.txt`
+(mỗi nguồn mở bằng `### <URL>`). Không viết từ trí nhớ. Luôn truyền `--brand-info` cho checker:
+số nào trong bài không có trong File (2) / brand-info / phụ lục đều bị WARN.
 
 ### 3. Đối chiếu (chưa viết)
 
@@ -105,8 +118,8 @@ Comment nêu một luật mới áp dụng được cho mọi sản phẩm → �
 
 ## Hàng loạt ("làm 5–20")
 
-1. `product.py --category <slug> --file2 "$F2" --list` rồi `--stt 5-20 --brief`: gom **mọi
-   BLOCK/CHECK** thành một danh sách, hỏi người dùng **một lần**.
+1. Bước 0 (`--preflight`), rồi `--stt 5-20 --brief`: gom **mọi THIẾU/HỎI/BLOCK/CHECK** thành
+   một danh sách, hỏi người dùng **một lần**.
 2. Bước 2–3 cho tất cả, trả **một bảng**: No. · template · variant/About · conflict cần quyết.
 3. Bước 4–6 **tuần tự** (draft trước phải lưu thì `--history` mới chống trùng được). Không dán lại
    draft vào chat; báo bảng: No. · đường dẫn · ERROR/WARN · ghi chú.

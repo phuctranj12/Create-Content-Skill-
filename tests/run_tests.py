@@ -455,6 +455,51 @@ class GenericEngineTests(unittest.TestCase):
         self.assertIn("made in the uk", errs)
         self.assertIn("British Dressage", errs)
 
+    def test_numbers_need_a_source(self):
+        # the approved YR8 draft took "three to five years" and "between two sizes" from the
+        # brand's fitting and care pages, not File (2): without them each number is a WARN
+        p, a = rh(2)
+        warns = [m for k, _, m in generic.check(self.no2, p, a, RH_CFG).items if k == "WARN"]
+        self.assertEqual(sorted(m.split("'")[1] for m in warns), ["2", "3", "5"])
+        pages = ("If you are between two sizes, round up to the larger size.\n"
+                 "Under normal usage, a helmet will last between three and five years.")
+        rep = generic.check(self.no2, p, a, RH_CFG, brand_info=pages)
+        self.assertEqual([m for k, _, m in rep.items if k == "WARN"], [])
+        # appendix years and codes count; a "5" that is in every template does not
+        self.assertIn("3200", generic.numbers("one hat from every batch of 800 to 3,200"))
+        self.assertNotIn("1", generic.numbers("someone, one of the best"))
+
+    def test_preflight_flags_input_gaps(self):
+        analyse = lambda q: generic.analyse(q, RH_PRODUCTS, RH_CFG)
+        text, ready, total = generic.preflight(RH_PRODUCTS, RH_CFG, RH_LABELS, analyse)
+        self.assertIn("Nội dung trang web (dán)", text)        # the reminder is printed
+        self.assertIn("harlow-js1-pro", text)                  # URL model not in (DE: ...) list
+        self.assertIn("ngày Excel", text)                      # Duplicate Risk 1, 2 -> 42371
+        self.assertEqual((ready, total), (2, 2))               # colour "/" is not missing
+        p = dict(RH_PRODUCTS[0])
+        for key in RH_CFG["types"]["liners"]["columns"]:
+            p[key] = ""
+        p["sizes"] = "small; large"
+        msgs = " | ".join(m for _, m in generic.preflight_issues(p, analyse(p), RH_CFG, RH_LABELS))
+        self.assertIn("dán nội dung trang", msgs)
+        self.assertIn("Size không đọc được", msgs)
+        p["page_content"] = "x" * 32000                       # pasted page fills the gap...
+        issues = generic.preflight_issues(p, analyse(p), RH_CFG, RH_LABELS)
+        self.assertFalse(any("dán nội dung trang" in m for _, m in issues))
+        self.assertTrue(any("gần giới hạn" in m for _, m in issues))   # ...but may be cut
+
+    def test_pasted_page_column_becomes_brand_info(self):
+        products, labels = pdplib.load_products(
+            os.path.join(FIX, "riding-hat", "file2-pasted.xlsx"), RH_CFG)
+        self.assertIn("page_content", labels)
+        p = pdplib.find_product(products, 2)
+        info = generic.brand_info_from_row(p)
+        self.assertTrue(info.startswith("### https://www.charlesowen.com/products/yr8\n"))
+        self.assertIn("microfibre suede", info)
+        self.assertEqual(generic.brand_info_from_row(pdplib.find_product(products, 1)), "")
+        self.assertEqual(generic.brand_info_from_row({"page_content": "Text only"}),
+                         "### File (2) · Nội dung trang web (dán)\nText only\n")
+
     def test_card_and_submit_files(self):
         p, a = rh(2)
         card = generic.card_markdown(p, a, RH_CFG, RH_LABELS)

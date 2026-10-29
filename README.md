@@ -104,6 +104,7 @@ Kết quả mỗi sản phẩm nằm ở `output/<ngành>/<STT>-<tên>/`:
 
 ```bash
 cd plugins/create-content/skills/pdp-content/scripts
+py -3 product.py --category riding-hat --file2 "File (2).xlsx" --preflight   # nhắc hạn chế + kiểm đầu vào
 py -3 product.py --file2 "File (2).xlsx" --list                    # tổng quan, sản phẩm bị BLOCK
 py -3 product.py --file2 "File (2).xlsx" --stt 4                   # thẻ một sản phẩm
 py -3 product.py --file2 "File (2).xlsx" --stt 2 --type air        # khi đã xác nhận loại
