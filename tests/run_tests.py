@@ -8,6 +8,8 @@ Run from anywhere:
 Standard library only, no test framework required.
 """
 
+import contextlib
+import io
 import json
 import os
 import re
@@ -15,6 +17,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "plugins", "create-content")
@@ -28,6 +31,7 @@ import generic  # noqa: E402
 import to_html  # noqa: E402
 import product  # noqa: E402
 import import_template  # noqa: E402
+import template_engine  # noqa: E402
 
 pdplib.utf8_stdio()
 
@@ -527,7 +531,7 @@ class PackagingTests(unittest.TestCase):
     def test_skill_references_exist(self):
         with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as fh:
             text = fh.read()
-        outputs = {"card.md", "analysis.md", "draft.md", "draft.html", "brand-info.txt"}
+        outputs = {"card.md", "analysis.md", "draft.md", "draft.html", "brand-info.txt", "rules.json"}
         for name in set(re.findall(r"`([\w.-]+\.(?:md|json|py))`", text)) - outputs:
             hits = [r for r, _, fs in os.walk(SKILL) if name in fs]
             self.assertTrue(hits, "SKILL.md nhắc tới %s nhưng không có tệp" % name)
@@ -589,6 +593,241 @@ class PackagingTests(unittest.TestCase):
         # Only plugin files ship: tests, sources and tooling stay outside.
         self.assertFalse(os.path.exists(os.path.join(PLUGIN, "tests")))
         self.assertFalse(os.path.exists(os.path.join(PLUGIN, "source")))
+
+
+def _docx(path, paragraphs, table_rows, comment):
+    w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    para = lambda t: "<w:p><w:r><w:t>%s</w:t></w:r></w:p>" % t.replace("&", "&amp;")
+    rows = "".join("<w:tr>%s</w:tr>" % "".join("<w:tc>%s</w:tc>" % para(c) for c in r)
+                   for r in table_rows)
+    body = "".join(para(t) for t in paragraphs) + "<w:tbl>%s</w:tbl>" % rows
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("word/document.xml", "<w:document %s><w:body>%s</w:body></w:document>" % (w, body))
+        z.writestr("word/comments.xml", '<w:comments %s><w:comment w:author="Lead">%s</w:comment>'
+                   "</w:comments>" % (w, para(comment)))
+
+
+def _xlsx(path, rows, sheet="PDP"):
+    cell = lambda v: '<c t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>' % v
+    data = "".join("<row>%s</row>" % "".join(
+        cell(v).replace("<c ", '<c r="%s%d" ' % (chr(65 + i), n), 1) for i, v in enumerate(r))
+        for n, r in enumerate(rows, start=1))
+    ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("xl/workbook.xml", '<workbook xmlns="%s" xmlns:r="%s"><sheets><sheet name="%s" '
+                   'sheetId="1" r:id="rId1"/></sheets></workbook>' % (ns, rel, sheet))
+        z.writestr("xl/_rels/workbook.xml.rels", '<Relationships xmlns="x"><Relationship Id="rId1" '
+                   'Target="worksheets/sheet1.xml"/></Relationships>')
+        z.writestr("xl/worksheets/sheet1.xml", '<worksheet xmlns="%s"><sheetData>%s</sheetData>'
+                   "</worksheet>" % (ns, data))
+
+
+class TemplateEngineTests(unittest.TestCase):
+    """A made-up product family: nothing in the engine may know about it."""
+
+    ABOUT_A = "We sell the [Product name] at example.co.uk, a shop with 9 years' trading."
+    ABOUT_B = "The [Product name] comes from example.co.uk, trading for 9 years."
+    BRAND_1 = "[Acme] was founded in 1999."
+    BRAND_2 = "[Acme] makes kettles."
+    HOME = "https://example.co.uk"
+    CAT = "https://example.co.uk/kettles.html"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.word = os.path.join(self.tmp, "t.docx")
+        self.xlsx = os.path.join(self.tmp, "f.xlsx")
+        self.work = os.path.join(self.tmp, "work")
+        self.write_word()
+        self.write_xlsx(paste=True)
+        self.run_te("init", "--template", self.word, "--file2", self.xlsx, "--workdir", self.work)
+        with open(os.path.join(self.work, "rules.json"), "w", encoding="utf-8") as fh:
+            json.dump(self.rules(), fh)
+
+    def write_word(self, extra=""):
+        _docx(self.word, ["Kettles", "Boil speed", "Colour", "About the brand", "Type", "Power",
+                          "Travel kettle", "Links " + self.HOME + " " + self.CAT,
+                          "Checklist kiểm tra", "Mọi số có nguồn", extra or "Hết"],
+              [["A", self.ABOUT_A], ["B", self.ABOUT_B], ["1", self.BRAND_1], ["2", self.BRAND_2]],
+              "Luật trong comment")
+
+    def write_xlsx(self, paste):
+        head = ["", "Product Name", "Product Name\nghi chú", "Kind", "Colours", "Size", "Brand", "PIC QC"]
+        rows = [["1", "", "Acme One", "Kettles", "• Red", "• 1L", "Acme", "An"],
+                ["7", "", "Acme Travel", "Kettles", "• Blue (shiny)", "• 2L", "Acme", "Bo"]]
+        if paste:
+            head.append("Nội dung trang web (dán)")
+            rows[0].append("https://brand.example/one\nFounded 1999. 9 years.")
+            rows[1].append("https://brand.example/two\nFounded 1999. 9 years.")
+        _xlsx(self.xlsx, [head] + rows)
+
+    def rules(self):
+        return {
+            "schema": 1, "name": "Kettles",
+            "file2": {"sheet": "PDP", "columns": {
+                "no": {"letter": "A"}, "name": {"header": "Product Name", "occurrence": 2},
+                "type": {"header": "Kind"}, "colours": {"header": "Colours"},
+                "sizes": {"header": "Size"}, "brand": {"header": "Brand"}, "qc": {"header": "PIC QC"}},
+                "required": ["name", "type"], "pic_columns": ["qc"]},
+            "types": {"Kettles": {"bullets": ["Type", "Power"], "h2": [
+                {"name": "Boil speed", "kind": "specific"}, {"name": "Colour", "kind": "common"}]},
+                "Travel kettle": {"bullets": ["Type"], "name_keywords": ["travel"], "h2": [
+                    {"name": "Boil speed", "kind": "specific"}]}},
+            "closing_h2": [{"name": "About the brand", "kind": "common", "required": True}],
+            "links": [{"key": "home", "url": self.HOME, "anchors": ["example.co.uk"], "block": "long",
+                       "section": "About the brand", "paragraph": 1},
+                      {"key": "cat", "url": self.CAT, "anchors": ["kettle"], "block": "short", "paragraph": 0}],
+            "pools": [{"id": "about", "section": "About the brand", "paragraph": 1, "match": "verbatim",
+                       "footer": "Variant", "placeholders": {"[Product name]": "name"},
+                       "items": [{"id": "A", "text": self.ABOUT_A}, {"id": "B", "text": self.ABOUT_B}]},
+                      {"id": "brand", "section": "About the brand", "paragraph": 0, "match": "contains",
+                       "footer": "Brand variant", "absent_value": "none", "previous_scope": "eligible",
+                       "items": [{"id": "Acme 1", "text": self.BRAND_1, "when": {"column": "brand", "equals": "Acme"}},
+                                 {"id": "Acme 2", "text": self.BRAND_2, "when": {"column": "brand", "equals": "Acme"}}]}],
+            "sequences": [{"id": "w", "values": ["P1", "P2"], "footer": "Pattern"}],
+            "data": {"size_pattern": r"\b\dL\b"},
+            "draft": {"blocks": ["meta", "short", "long"], "banned_chars": ["—"],
+                      "meta": {"min": 10, "max": 200, "must_include": ["name"]},
+                      "short": {"opening_sentences": [1, 2], "bridge_sentences": [1, 1]}},
+            "checklist_section": {"from": "Checklist kiểm tra", "to": "Hết"}}
+
+    def run_te(self, *args):
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = template_engine.main(list(args))
+        except SystemExit as e:
+            code = e.code if isinstance(e.code, int) else 1
+            out.write(str(e))
+        return code, out.getvalue()
+
+    def te(self, cmd, *args):
+        return self.run_te(cmd, "--workdir", self.work, *args)
+
+    def confirm(self):
+        self.assertEqual(self.te("validate")[0], 0, self.te("validate")[1])
+        self.assertEqual(self.te("confirm")[0], 0)
+
+    def draft(self, no, name, about, brand, pattern, colour="Red", size="1L"):
+        link = "[example.co.uk](%s)" % self.HOME
+        about_text = {"A": "We sell the %s at %s, a shop with 9 years' trading." % (name, link),
+                      "B": "The %s comes from %s, trading for 9 years." % (name, link)}[about]
+        brand_text = {"Acme 1": "Acme was founded in 1999.", "Acme 2": "Acme makes kettles."}[brand]
+        text = ("# META DESCRIPTION\nThe %s from Acme.\n\n# SHORT DESCRIPTION\nA quick [kettle](%s).\n\n"
+                "- **Type:** Kettle\n- **Power:** high\n\nSee below.\n\n# LONG DESCRIPTION\n## Boil speed\n"
+                "Fast for %s.\n\n## Colour\nIn %s, size %s.\n\n## About the brand\n%s\n\n%s\n\n# NOTES\n"
+                "Variant: %s\nBrand variant: %s\nPattern: %s\n"
+                % (name, self.CAT, name, colour, size, brand_text, about_text, about, brand, pattern))
+        folder = os.path.join(self.work, "%03d-%s" % (no, pdplib.slugify(name)))
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, "draft.md"), "w", encoding="utf-8") as fh:
+            fh.write(text)
+        with open(os.path.join(folder, "brand-info.txt"), "w", encoding="utf-8") as fh:
+            fh.write("Founded 1999. 9 years.")
+        return text
+
+    def test_word_text_includes_tables_and_comments(self):
+        with open(os.path.join(self.work, "template.txt"), encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("A | We sell the [Product name]", text)
+        self.assertIn("[Lead] Luật trong comment", text)
+
+    def test_rule_not_in_word_is_refused(self):
+        rules = self.rules()
+        rules["pools"][0]["items"][0]["text"] = self.ABOUT_A.replace("9 years", "10 years")
+        rules["types"]["Kettles"]["h2"].append({"name": "Invented heading", "kind": "common"})
+        rules["links"][1]["url"] = "https://example.co.uk/invented.html"
+        with open(os.path.join(self.work, "rules.json"), "w", encoding="utf-8") as fh:
+            json.dump(rules, fh)
+        code, out = self.te("validate")
+        self.assertEqual(code, 1)
+        for needle in ("nguyên văn", "Invented heading", "invented.html"):
+            self.assertIn(needle, out)
+        self.assertEqual(self.te("confirm")[0], 1)
+
+    def test_nothing_runs_until_confirmed_and_after_a_change(self):
+        self.assertEqual(self.te("preflight")[0], 2)
+        self.confirm()
+        self.assertNotEqual(self.te("preflight")[0], 2)
+        rules = self.rules()
+        rules["draft"]["meta"]["max"] = 300
+        with open(os.path.join(self.work, "rules.json"), "w", encoding="utf-8") as fh:
+            json.dump(rules, fh)
+        self.assertEqual(self.te("preflight")[0], 2)
+
+    def test_changed_word_is_reported_and_needs_a_new_confirmation(self):
+        self.confirm()
+        self.write_word(extra="Luật mới")
+        code, out = self.run_te("init", "--template", self.word, "--file2", self.xlsx, "--workdir", self.work)
+        self.assertIn("FILE WORD ĐÃ ĐỔI", out)
+        self.assertTrue(os.path.isfile(os.path.join(self.work, "template.diff")))
+        self.assertEqual(self.te("preflight")[0], 2)
+
+    def test_missing_paste_column_reminds_the_user(self):
+        self.write_xlsx(paste=False)
+        self.confirm()
+        code, out = self.te("preflight")
+        self.assertEqual(code, 3)
+        self.assertIn("Nội dung trang web (dán)", out)
+        self.assertIn("THIẾU", out)
+        self.assertIn("0/2", out)
+
+    def test_preflight_asks_and_remembers_the_answer(self):
+        self.confirm()
+        code, out = self.te("preflight", "--pic", "Bo")
+        self.assertEqual(code, 3)
+        self.assertIn("gợi ý type Travel kettle", out)
+        self.assertIn("Blue (shiny)", out)
+        self.assertNotIn("Acme One", out)
+        with open(os.path.join(self.work, "answers.json"), "w", encoding="utf-8") as fh:
+            json.dump({"7": {"type": "Travel kettle", "ok": True}}, fh)
+        self.assertEqual(self.te("preflight", "--pic", "Bo")[0], 0)
+
+    def test_clean_draft_then_rotation_on_the_next_product(self):
+        self.confirm()
+        self.assertEqual(self.te("card", "--no", "1")[0], 0)
+        self.draft(1, "Acme One", "A", "Acme 1", "P1")
+        code, out = self.te("check", "--no", "1")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.te("html", "--no", "1")[0], 0)
+        folder = os.path.join(self.work, "001-acme-one")
+        with open(os.path.join(folder, "ban-html.txt"), encoding="utf-8") as fh:
+            self.assertIn('<a href="%s">' % self.CAT, fh.read())
+        with open(os.path.join(folder, "ban-ghi-chu.txt"), encoding="utf-8") as fh:
+            self.assertIn("Variant: A", fh.read())
+        with open(os.path.join(self.work, "answers.json"), "w", encoding="utf-8") as fh:
+            json.dump({"7": {"colours": "Blue", "sizes": "2L"}}, fh)
+        code, card = self.te("card", "--no", "7")
+        self.assertIn("Variant **B**", card)
+        self.assertIn("Brand variant **Acme 2**", card)
+        self.assertIn("Pattern: **P2**", card)
+        self.draft(7, "Acme Travel", "A", "Acme 1", "P1", colour="Blue", size="2L")
+        code, out = self.te("check", "--no", "7")
+        self.assertEqual(code, 1, out)
+        self.assertIn("Pattern phải là P2", out)
+        self.assertIn("Variant nên là B", out)
+
+    def test_mistakes_are_caught(self):
+        self.confirm()
+        good = self.draft(1, "Acme One", "A", "Acme 1", "P1")
+        path = os.path.join(self.tmp, "bad.md")
+        cases = [
+            (good.replace("Fast for", "Fast — for"), "Ký tự bị cấm"),
+            (good.replace("We sell", "We offer"), "không khớp nguyên văn"),
+            (good.replace("In Red", "In Green"), "Thiếu màu"),
+            (good.replace("size 1L", "size 1L or 3L"), "Size '3L'"),
+            (good.replace("Fast for", "Fast [x](https://evil.example/a) for"), "không có trong danh sách"),
+            (good.replace("## Colour", "## Made up"), "không có trong type"),
+            (good.replace("## About the brand\n", "## Other\n"), "Thiếu H2 bắt buộc"),
+            (good.replace("- **Power:** high\n", "- **Weight:** 1kg\n"), "Nhãn bullet"),
+            (good.replace("Fast for", "Rated 2200 watts for"), "Số '2200'"),
+            (good.replace("Variant: A", "Variant: Z"), "không hợp lệ"),
+        ]
+        for text, needle in cases:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            self.assertIn(needle, self.te("check", "--no", "1", "--draft", path)[1], needle)
 
 
 if __name__ == "__main__":

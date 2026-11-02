@@ -1,9 +1,9 @@
 ---
 name: pdp-content
-description: Sản xuất nội dung trang sản phẩm (PDP) hàng loạt cho discount-equestrian.co.uk theo quy trình của team content (Template/File (1), File (2) .xlsx, First prompt, checklist), cho mọi ngành hàng có "category pack" trong skill. Hiện có Riding Body Protector (body/back protector, air vest, phụ kiện) và Riding Hat (Riding Hat, Hat Silks & Covers, Liners & Parts, Helmet Accessories). Script đọc File (2), tính sẵn template, H2, nhãn bullet, đoạn discount-equestrian.co.uk nguyên văn, link, màu và câu size theo size DE bán; Claude đối chiếu THÔNG TIN TỪ BRAND, báo conflict, viết bài; script tự kiểm draft (H2, bullet, màu, size, link, đoạn About, chuẩn an toàn, trùng lặp) và xuất bản nộp Text + HTML. Dùng khi người dùng nói "Đối chiếu dữ liệu sản phẩm số …", "Phân tích sản phẩm số …", "Viết bài", "Tạo nội dung", "Tạo bản HTML", "viết PDP STT/No. …", "làm hàng loạt 5-20", hoặc đưa File (2) / THÔNG TIN TỪ BRAND / ảnh comment review của một bài PDP.
+description: Sản xuất nội dung trang sản phẩm (PDP) hàng loạt cho discount-equestrian.co.uk theo quy trình của team content (Template/File (1), File (2) .xlsx, First prompt, checklist), cho mọi ngành hàng: đưa file Word (template) và file Excel là skill tự đọc luật từ Word, người dùng xác nhận một lần rồi chạy, kể cả ngành mới như Horse Rugs. Có sẵn pack Riding Body Protector và Riding Hat. Script đọc File (2), tính sẵn H2, bullet, đoạn nguyên văn, link, màu, size; Claude đối chiếu THÔNG TIN TỪ BRAND, báo conflict, viết bài; script tự kiểm draft và xuất bản nộp Text + HTML. Dùng khi người dùng nói "Đối chiếu dữ liệu sản phẩm số …", "Phân tích sản phẩm số …", "Viết bài", "Tạo nội dung", "Tạo bản HTML", "viết PDP STT/No. …", "làm hàng loạt 5-20", hoặc đưa file Word template, File (2) / THÔNG TIN TỪ BRAND / ảnh comment review của một bài PDP.
 license: MIT
 compatibility: Cần Python 3.8+ (py -3 trên Windows, python3 trên macOS/Linux), chỉ dùng thư viện chuẩn. WebFetch/WebSearch chỉ dùng khi First prompt của category cho phép; không thì người dùng dán THÔNG TIN TỪ BRAND.
-allowed-tools: Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/product.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/product.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/check_draft.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/check_draft.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/to_html.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/to_html.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/import_template.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/import_template.py:*)
+allowed-tools: Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/product.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/product.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/check_draft.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/check_draft.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/to_html.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/to_html.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/import_template.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/import_template.py:*), Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/template_engine.py:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/template_engine.py:*)
 metadata:
   categories: riding-body-protector, riding-hat
   site: discount-equestrian.co.uk
@@ -24,7 +24,49 @@ chỉ làm phần cần phán đoán: đọc THÔNG TIN TỪ BRAND, xử lý con
 3. **Chuẩn an toàn / thi đấu không tự quyết**: lệch, thiếu năm, thiếu quality mark → dừng, hỏi.
 4. **Sau mỗi draft: `check_draft.py` 0 ERROR rồi rà checklist từng dòng.**
 
+## Chế độ theo file Word (mặc định khi có file Word và Excel)
+
+Người dùng đưa **file Word (template) và file Excel** của một ngành chưa có pack, hoặc yêu cầu chạy theo
+file Word: luật lấy từ file Word, không cần pack. Chỉ dùng hai file đó và phần dán trong Excel.
+`$TE` = `${CLAUDE_SKILL_DIR}/scripts/template_engine.py`; `$OUT` = `./output/<tên-ngành>`.
+
+1. `py -3 $TE init --template "<Word>" --file2 "<Excel>" --workdir "$OUT"`, rồi làm theo dòng TRẠNG THÁI:
+   - **MỚI**: đọc toàn bộ `$OUT/template.txt`, `$OUT/file2-columns.txt` và `common/rules-schema.md`,
+     viết `$OUT/rules.json`.
+   - **KHÔNG ĐỔI**: dùng lại luật, sang bước 3.
+   - **FILE WORD ĐÃ ĐỔI**: đọc `template.diff`, cập nhật `rules.json`, báo người dùng luật nào đổi.
+2. `py -3 $TE validate --workdir "$OUT"`, sửa đến hết ERROR, xử lý từng WARN. **Đưa bảng luật và các
+   `questions` cho người dùng, dừng chờ.** Họ đồng ý mới chạy `confirm`. Không tự confirm: mọi lệnh sau
+   từ chối chạy nếu chưa confirm, và khi Word hoặc `rules.json` đổi.
+3. `py -3 $TE preflight --workdir "$OUT" [--pic "<tên>"] [--no 94-97]`. **Đưa nguyên phần nhắc và bảng
+   cho người dùng, gom mọi THIẾU/HỎI hỏi một lần.** Thiếu cột hoặc ô `Nội dung trang web (dán)` là THIẾU:
+   nhắc bổ sung, không viết dòng đó, không tự lấy web để lấp. Excel mới thì chạy lại `init` với đường dẫn mới.
+   Lưu câu trả lời vào `$OUT/answers.json` để không hỏi lại: `{"116": {"type": "Cooler Rugs", "ok": true}}`
+   (giá trị thay cho ô Excel của riêng đợt này; `ok` = đã chốt các HỎI của dòng đó). Sai ở Excel gốc thì báo
+   người dùng sửa, theo đúng quy trình trong Word.
+4. Với từng sản phẩm, **theo đúng thứ tự file**, làm đúng quy trình trong file Word:
+   `py -3 $TE card --workdir "$OUT" --no N` tạo `card.md` và `brand-info.txt`. Lấy H2, bullet, link, đoạn
+   nguyên văn và variant từ thẻ, không tính lại. Các bước phân tích, chờ duyệt, lệnh viết, phân bổ dữ
+   liệu theo First prompt trong Word; `template.txt` là nguồn luật khi thẻ không nói tới.
+5. Viết `<thư mục sản phẩm>/draft.md` theo định dạng ở `common/rules-schema.md`.
+   `py -3 $TE check --workdir "$OUT" --no N`: sửa đến 0 ERROR, xét từng WARN, rồi rà `$OUT/checklist.txt`
+   và `judgement` từng dòng.
+6. `py -3 $TE html --workdir "$OUT" --no N` (từ chối nếu draft còn ERROR) ghi `ban-text.html`,
+   `ban-html.txt`, `ban-ghi-chu.txt`. Nộp theo bước cuối trong Word.
+
+**Ưu tiên nguồn (quyết định của người dùng, thắng luật ưu tiên brand trong Word):** Excel lệch web thì theo
+Excel, gồm type, tên màu, size và thông số; thông tin chỉ có trong Excel vẫn được viết. Vẫn ghi điểm lệch vào
+phần Conflict nhưng không dừng hỏi. Ngoại lệ: lệch về chuẩn an toàn, chứng nhận thì dừng hỏi.
+
+Hàng loạt: bước 3 một lần cho cả đợt; bước 4–6 tuần tự, vì bộ đếm variant và chống trùng dựa trên các
+draft đã lưu. "Tự chạy luôn" chỉ bỏ chờ với sản phẩm không có conflict; vẫn dừng ở mọi THIẾU, HỎI,
+conflict. Báo kết quả bằng một bảng, không dán lại draft vào chat. Bốn điều cốt lõi ở trên vẫn áp dụng; nếu
+khác file Word thì theo file Word.
+
 ## Chọn ngành hàng (category pack)
+
+Ngành đã có pack dưới đây vẫn chạy theo quy trình pack, trừ khi người dùng đưa file Word mới hoặc yêu
+cầu chạy theo file Word.
 
 `${CLAUDE_SKILL_DIR}` là thư mục skill; Windows dùng `py -3`, macOS/Linux dùng `python3`.
 `$CAT` = `${CLAUDE_SKILL_DIR}/categories/<slug>`; mọi lệnh nhận `--category <slug>`.
