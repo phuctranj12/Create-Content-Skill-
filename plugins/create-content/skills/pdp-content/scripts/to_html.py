@@ -139,7 +139,12 @@ def submit_text_page(text, cfg):
     head = "".join("\n<p><strong>%s:</strong> %s</p>" % (label, html.escape(value, quote=False))
                    for label, value in metas.items())
     body = convert(text, cfg, clean=True)
-    body = body.replace("</h1>", "</h1>" + head, 1)
+    if "</h1>" in body:
+        body = body.replace("</h1>", "</h1>" + head, 1)
+    else:
+        # A template with no H1 block (the page title is the product name)
+        title = title or metas.get("Meta title", "")
+        body = head.lstrip("\n") + "\n" + body
     return PAGE % (html.escape(title), body)
 
 
