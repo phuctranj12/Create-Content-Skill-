@@ -808,7 +808,8 @@ def shim(rules):
     wanted = rules["draft"].get("blocks", ["meta_title", "meta", "short", "long"])
     blocks = {k: v for k, v in blocks.items() if k in wanted or k == "notes"}
     return {"draft": {"blocks": blocks,
-                      "html_blocks": [k for k in ("short", "long") if k in wanted]}}
+                      "html_blocks": [k for k in ("short", "long") if k in wanted],
+                      "html_labels": rules["draft"].get("html_labels", False)}}
 
 
 def _located_links(blocks):

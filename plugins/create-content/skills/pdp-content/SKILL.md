@@ -63,6 +63,11 @@ draft đã lưu. "Tự chạy luôn" chỉ bỏ chờ với sản phẩm không 
 conflict. Báo kết quả bằng một bảng, không dán lại draft vào chat. Bốn điều cốt lõi ở trên vẫn áp dụng; nếu
 khác file Word thì theo file Word.
 
+**Kiểm đủ bộ trước khi nộp (sau cả đợt):** bước `html` chạy từng sản phẩm, nên dễ sót một dòng. Trước
+khi nộp, đối chiếu **số bộ tệp nộp = số sản phẩm đã viết**: mỗi `$OUT/NNN-*/` có draft phải có đủ
+`ban-text.html` và `ban-html.txt` khác rỗng. Thiếu bộ nào (thường do quên chạy `html` cho dòng đó) thì
+chạy lại `html --no N`; chỉ nộp khi đã đủ. Đưa kết quả đối chiếu vào bảng báo cáo cuối đợt.
+
 ## Chọn ngành hàng (category pack)
 
 Ngành đã có pack dưới đây vẫn chạy theo quy trình pack, trừ khi người dùng đưa file Word mới hoặc yêu

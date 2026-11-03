@@ -161,10 +161,14 @@ def meta_lines(text, cfg):
 
 
 def submit_html(text, cfg):
-    """Code for the HTML tab. When the category has a Meta title block (writer
-    guide Step 10: metas as plain text, then H1 / Short / Long code blocks),
-    the metas go on top, then each block under its own label."""
-    if "meta_title" not in cfg["draft"]["blocks"]:
+    """Code for the HTML tab. When the category has a Meta title block AND
+    html_labels is on (writer guide Step 10: metas as plain text, then
+    H1 / Short / Long code blocks), the metas go on top and each block sits
+    under its own label. With html_labels off (the default for the
+    template-driven engine, e.g. Horse Rugs: metas kept as separate text
+    outside the HTML, the HTML tab only heading/paragraph/bullet/link tags),
+    the HTML tab is one clean body: no meta lines, no section labels."""
+    if not cfg["draft"].get("html_labels", True) or "meta_title" not in cfg["draft"]["blocks"]:
         return convert(text, cfg, clean=True)
     metas = meta_lines(text, cfg)
     metas.pop("h1")

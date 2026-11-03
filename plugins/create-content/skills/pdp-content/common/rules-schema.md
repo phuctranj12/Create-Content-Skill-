@@ -56,6 +56,10 @@ Word, máy chỉ kiểm hợp lệ), `previous_scope` (`any` / `eligible`), `abs
 `{"min", "max", "severity": "error" | "warn", "must_include": ["name"]}`, `banned_chars`,
 `banned_phrases`, `spelling`, `short`: `{"opening_sentences": [2, 3], "bridge_sentences": [1, 2],
 "no_link_bullet": "Type"}`. Word ghi "khoảng" thì dùng `severity: warn`.
+`html_labels`: mặc định `false` — tab HTML (`ban-html.txt`) là một thân HTML sạch, chỉ thẻ
+heading/đoạn/bullet/link, meta để text riêng ngoài HTML (đúng spec đa số team, gồm Horse Rugs). Đặt
+`true` chỉ khi writer-guide của ngành yêu cầu chèn nhãn `[H1]` / `[Short description]` /
+`[Long description]` và các dòng meta vào trong file HTML.
 
 `numbers_source`: `any` (mặc định: Excel và phần dán đều là nguồn, theo quyết định ưu tiên Excel);
 `brand_info` chỉ khi người dùng yêu cầu chỉ tính phần dán; `off` để tắt.
