@@ -830,5 +830,101 @@ class TemplateEngineTests(unittest.TestCase):
             self.assertIn(needle, self.te("check", "--no", "1", "--draft", path)[1], needle)
 
 
+CAT_SKILL = os.path.join(PLUGIN, "skills", "category-content")
+CAT_FIX = os.path.join(FIX, "category")
+sys.path.insert(0, os.path.join(CAT_SKILL, "scripts"))
+import wlib  # noqa: E402
+import links as cat_links  # noqa: E402
+import check as cat_check  # noqa: E402
+
+
+class CategoryContentTests(unittest.TestCase):
+    """wholesalehats.com category skill: link model (Phần 1 mục 8.1) and machine QA."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = wlib.load_csv(os.path.join(CAT_FIX, "file2.csv"))
+        with open(os.path.join(CAT_FIX, "good-draft-t5.md"), encoding="utf-8") as fh:
+            cls.good = fh.read()
+
+    def card(self, page):
+        row = cat_links.find(self.rows, page)
+        tpl, _b, links = cat_links.resolve(self.rows, row)
+        return tpl, {n: h2 for _a, n, _u, h2, _r in links}
+
+    def test_t3_links_brand_con_and_children(self):
+        tpl, card = self.card("Trucker Hats")
+        self.assertEqual(tpl, "T3")
+        for name in ("Homepage", "Acme Trucker Hats", "Acme Classic Hats",
+                     "Mesh Trucker Hats", "Foam Trucker Hats"):
+            self.assertIn(name, card)
+        self.assertIn("by brand", card["Acme Classic Hats"])
+        self.assertIn("Top", card["Mesh Trucker Hats"])
+
+    def test_t5_links_parent_brand_con_and_siblings(self):
+        tpl, card = self.card("Camo Trucker Hats")
+        self.assertEqual(tpl, "T5")
+        self.assertEqual(set(card), {"Homepage", "Camo Hats", "Acme Trucker Hats",
+                                     "Realtree® Camouflage"})
+
+    def test_t2_links_own_children_and_siblings(self):
+        tpl, card = self.card("Acme Classic Hats")
+        self.assertEqual(tpl, "T2")
+        for name in ("Homepage", "Acme Hats", "Acme Trucker Hats", "Acme Classic Mini Hats", "Trucker Hats"):
+            self.assertIn(name, card)
+        self.assertNotIn("Bolt Hats", card)  # brand cha khác chỉ dành cho T1
+
+    def test_t1_links(self):
+        tpl, card = self.card("Acme Hats")
+        self.assertEqual(tpl, "T1")
+        self.assertEqual(set(card), {"Homepage", "Bolt Hats", "Trucker Hats",
+                                     "Acme Trucker Hats", "Acme Classic Hats"})
+
+    def test_entity_format_by_stt(self):
+        self.assertEqual(wlib.entity_format(59), "prose")
+        self.assertEqual(wlib.entity_format(44), "bullet")
+        self.assertEqual(cat_links.find(self.rows, "Camo Trucker Hats").stt, 10)
+
+    def test_good_draft_has_no_errors(self):
+        errors, warns, _wc = cat_check.check_text(self.good, self.rows, "Camo Trucker Hats")
+        self.assertEqual(errors, [])
+        self.assertTrue(any("STT 10 chẵn" in w for w in warns))  # fixture STT 10 -> bullet
+
+    def test_mistakes_are_caught(self):
+        g = self.good
+        home = "[trusted source for bulk hats](https://www.wholesalehats.com/)"
+        real = "[Realtree® camouflage](https://www.wholesalehats.com/custom-realtree-camo-hats)"
+        cases = [
+            (g.replace("since 1979, with", "since 1979 — with"), "dash"),
+            (g.replace(home, "[bulk hats](https://www.wholesalehats.com/)"), "Anchor homepage"),
+            (g.replace(real + ":", "Realtree® camouflage:"), "Thiếu link bắt buộc"),
+            (g + "\nSee our [visors](https://www.wholesalehats.com/custom-visors) too.\n", "không có trong link card"),
+            (g.replace("collection.", "collection, plus " + real + " and "
+                       "[foam](https://www.wholesalehats.com/foam-trucker-hats)."), "Đoạn có 3 link"),
+            (g.replace("in natural settings.", "in natural settings, see " + real + " and "
+                       "[acme](https://www.wholesalehats.com/acme-trucker-hats)."), "Câu có hơn 1 link"),
+            (g.replace("## Other camo styles to explore", "## Other [camo](https://www.wholesalehats.com/x) styles"),
+             "Link nằm trong heading"),
+            (g.replace("custom-realtree-camo-hats)", "custom-realtree-camo-hats?utm_source=chatgpt.com)"), "utm"),
+            (g.replace("wholesalehats.com distributes", "Wholesalehats.com distributes"), "chữ thường"),
+        ]
+        for text, needle in cases:
+            errors, _w, _wc = cat_check.check_text(text, self.rows, "Camo Trucker Hats")
+            self.assertTrue(any(needle in e for e in errors), (needle, errors))
+
+    def test_skill_files(self):
+        with open(os.path.join(CAT_SKILL, "SKILL.md"), encoding="utf-8") as fh:
+            text = fh.read()
+        fm = text.split("---", 2)[1]
+        fields = set(re.findall(r"^([a-z-]+):", fm, re.M))
+        self.assertTrue(fields <= SPEC_FRONTMATTER_FIELDS, fields - SPEC_FRONTMATTER_FIELDS)
+        self.assertEqual(re.search(r"^name: (.+)$", fm, re.M).group(1), "category-content")
+        self.assertLessEqual(len(re.search(r"^description: (.+)$", fm, re.M).group(1)), 1024)
+        outputs = {"draft.md", "file2.csv", "pdps.csv"}
+        for name in set(re.findall(r"`(?:[\w/]+/)?([\w.-]+\.(?:md|py))`", text)) - outputs:
+            hits = [r for r, _, fs in os.walk(CAT_SKILL) if name in fs]
+            self.assertTrue(hits, "category-content SKILL.md nhắc tới %s nhưng không có tệp" % name)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

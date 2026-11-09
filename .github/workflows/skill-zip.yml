@@ -2,7 +2,7 @@ name: skill-zip
 
 # Claude Code users get updates straight from main (plugin auto-update).
 # claude.ai chat users upload a zip instead: this keeps a "skill-latest"
-# release whose pdp-content.zip always matches main.
+# release whose skill zips (pdp-content.zip, category-content.zip) always match main.
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete skill-latest --yes --cleanup-tag || true
-          gh release create skill-latest dist/pdp-content.zip \
-            --title "pdp-content skill (bản mới nhất từ main)" \
-            --notes "Commit ${GITHUB_SHA::12}. Tải pdp-content.zip để upload lên claude.ai (Customize > Skills). Claude Code tự cập nhật, không cần tệp này." \
+          gh release create skill-latest dist/*.zip \
+            --title "Skill create-content (bản mới nhất từ main)" \
+            --notes "Commit ${GITHUB_SHA::12}. Tải pdp-content.zip (PDP discount-equestrian) hoặc category-content.zip (category wholesalehats.com) để upload lên claude.ai (Customize > Skills). Claude Code tự cập nhật, không cần tệp này." \
             --latest

@@ -8,6 +8,9 @@ Covers, Liners & Parts, Helmet Accessories). Ngành mới thêm bằng một th�
 `categories/` (engine `generic`, không sửa code); luật áp dụng cho mọi ngành nằm ở
 `common/universal-rules.md`.
 
+Plugin có thêm skill **category-content** cho **trang category của wholesalehats.com** (xem mục
+[Skill category-content](#skill-category-content-wholesalehatscom) bên dưới).
+
 Skill chuyển phần việc lặp lại sang script, để Claude chỉ làm phần cần phán đoán:
 
 | Việc | Quy trình thủ công | Với skill |
@@ -56,7 +59,7 @@ khẩu; nếu chưa đăng nhập, nó lặng lẽ giữ bản cũ.
 ### Chat trên claude.ai / Claude Desktop
 
 Chế độ Chat không cài plugin từ GitHub. Thay vào đó:
-1. Tải `pdp-content.zip` từ release **skill-latest** của repo (GitHub Actions tự build lại mỗi khi
+1. Tải `pdp-content.zip` (hoặc `category-content.zip`) từ release **skill-latest** của repo (GitHub Actions tự build lại mỗi khi
    main đổi).
 2. Upload ở **Customize › Skills**.
 
@@ -112,6 +115,31 @@ py -3 check_draft.py --draft d.md --file2 "File (2).xlsx" --stt 4 --brand-info b
 py -3 to_html.py d.md --submit                                     # draft.html + 2 tệp nộp
 ```
 
+## Skill category-content (wholesalehats.com)
+
+Viết lại nội dung trang category (Brand cha, Brand con, Product type cha, Product type con) theo
+quy trình "WH_Quy trình content category" (FILE 1), file internal linking (FILE 2) và Onpage_PDPs
+(FILE 3). Gọi bằng `/create-content:category-content`, hoặc nói "Follow quy trình tạo nội dung cho
+category page", "Phân tích loạt trang", "Tạo nội dung cho 5 trang".
+
+| Việc | Quy trình thủ công | Với skill |
+| --- | --- | --- |
+| Chọn template T1–T5, nhánh, format section entity theo STT | AI suy ra, writer soát | `links.py` in sẵn trên link card |
+| Danh sách link bắt buộc (homepage, brand cha, anh em, product type, brand con ở cột "Link Brand con", trang con của Yupoong) | Writer dò file internal linking | `links.py` giải từ CSV, không bịa URL |
+| Soát dash, tên brand, link thiếu/thừa/lặp, anchor homepage, ≤2 link/đoạn, ≤1 link/câu, link trong heading/FAQ, utm | Writer đọc tay | `check.py` báo ERROR/WARN |
+| Bảng fact brand | Research lại mỗi thread | `brands/<brand>.md` dùng lại (đã có Richardson, Nike) |
+| Bản nộp | Dán tay vào Google Doc | `build_doc.py` xuất .docx (H1, H2, bullet, hyperlink) |
+
+```bash
+cd plugins/create-content/skills/category-content/scripts
+py -3 links.py --file2 file2.csv --page "Trucker Hats"            # link card + template + STT
+py -3 check.py --file2 file2.csv --page "Trucker Hats" draft.md   # 0 ERROR mới nộp
+py -3 build_doc.py draft.md --out "Trucker Hats.docx"
+```
+
+`file2.csv` = tab "Copy of Danh sách chi tiết" của file internal linking (có cột URL, Anchor home page,
+STT). Mâu thuẫn đã biết trong FILE (1) và cách xử lý nằm cuối `common/rules.md`.
+
 ## Cấu trúc
 
 ```
@@ -119,7 +147,10 @@ Create-Content-Skill-/                     ← marketplace "hawee-content"
 ├── .claude-plugin/marketplace.json        # liệt kê plugin, source: ./plugins/create-content
 ├── plugins/create-content/                ← plugin "create-content" (chỉ thư mục này được cài)
 │   ├── .claude-plugin/plugin.json         # KHÔNG có "version": cập nhật theo commit
-│   └── skills/pdp-content/
+│   └── skills/
+│       ├── category-content/              # wholesalehats.com: SKILL.md, common/ (luật, template, QA,
+│       │                                  #   mẫu phân tích), brands/ (bảng fact), scripts/ (links, check, build_doc)
+│       └── pdp-content/
 │       ├── SKILL.md                       # quy trình 6 bước + hàng loạt + kỷ luật token
 │       ├── categories/riding-body-protector/
 │       │   ├── category.json              # cột File (2), loại→outline, H2, bullet, URL, {Role}, luật kiểm
@@ -133,7 +164,7 @@ Create-Content-Skill-/                     ← marketplace "hawee-content"
 ├── tools/build_skill_zip.py               # zip cho claude.ai
 └── .github/workflows/
     ├── tests.yml                          # test + claude plugin validate cho mọi PR/push
-    └── skill-zip.yml                      # build pdp-content.zip vào release skill-latest
+    └── skill-zip.yml                      # build pdp-content.zip + category-content.zip vào release skill-latest
 ```
 
 ## Cập nhật template / thêm ngành hàng

@@ -1,0 +1,12 @@
+STT,Tên danh mục,URL danh mục ,URL brand,Anchor home page,Cấp,Loại danh mục,Danh mục cha,Số danh mục con trực tiếp,Link Homepage,Link Brand cha khác 1,Link Brand cha khác 2,Link Brand cha khác 3,Link Product type 1,Link Product type 2,Link Product type 3,Số link Brand con,Link Brand con 1,Link Brand con 2,Link Brand con 3,Link Brand con 4,Link Brand con 5,Link Brand con 6,Link Brand con 7,Link Brand con 8,Link Brand con 9,Link Brand con 10,Link Brand con 11,Link Brand con 12,Số lần được link (từ cột H–AA)
+1,Acme Hats,https://www.wholesalehats.com/custom-acme-hats,https://acme.example,hat wholesaler,,Brand cha,Homepage,,,Bolt Hats,,,Trucker Hats,,,,,,,,,,,,,,,,
+2,Acme Trucker Hats,https://www.wholesalehats.com/acme-trucker-hats,,bulk caps,,Brand con,Acme Hats,,Homepage,,,,Mesh Trucker Hats,Camo Hats,,,,,,,,,,,,,,,
+3,Acme Classic Hats,https://www.wholesalehats.com/acme-classic-hats,,caps in bulk,,Brand con,Acme Hats,,Homepage,,,,Trucker Hats,,,,,,,,,,,,,,,,
+4,Acme Classic Mini Hats,https://www.wholesalehats.com/acme-classic-mini-hats,,hats in bulk,,Brand con,Acme Classic Hats,,Homepage,,,,,,,,,,,,,,,,,,,,
+5,Bolt Hats,https://www.wholesalehats.com/custom-bolt-hats,,wholesale caps,,Brand cha,Homepage,,,Acme Hats,,,,,,,,,,,,,,,,,,,
+6,Trucker Hats,https://www.wholesalehats.com/custom-trucker-hats,,wholesalehats.com,,Product type cha,Homepage,,,,,,,,,2,Acme Trucker Hats,Acme Classic Hats,,,,,,,,,,,
+7,Mesh Trucker Hats,https://www.wholesalehats.com/custom-mesh-trucker-hats,,bulk order hats,,Product type con,Trucker Hats,,Homepage,,,,,,,1,Acme Trucker Hats,,,,,,,,,,,,
+8,Foam Trucker Hats,https://www.wholesalehats.com/foam-trucker-hats,,wholesale hats,,Product type con,Trucker Hats,,Homepage,,,,,,,,,,,,,,,,,,,,
+9,Camo Hats,https://www.wholesalehats.com/custom-camouflage-hats,,wholesalehats.com,,Product type cha,Homepage,,,,,,,,,,,,,,,,,,,,,,
+10,Camo Trucker Hats,https://www.wholesalehats.com/custom-camo-trucker-hats,,trusted source for bulk hats,,Product type con,Camo Hats,,Homepage,,,,,,,1,Acme Trucker Hats,,,,,,,,,,,,
+11,Realtree® Camouflage,https://www.wholesalehats.com/custom-realtree-camo-hats,,bulk custom hats,,Product type con,Camo Hats,,Homepage,,,,,,,,,,,,,,,,,,,,

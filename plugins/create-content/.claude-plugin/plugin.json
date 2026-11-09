@@ -1,7 +1,7 @@
 {
   "name": "create-content",
-  "displayName": "Create Content — PDP hàng loạt",
-  "description": "Sản xuất nội dung trang sản phẩm (PDP) hàng loạt cho discount-equestrian.co.uk theo quy trình chuẩn, cho mọi ngành hàng có category pack (Riding Body Protector, Riding Hat): đọc File (2), tính sẵn template/H2/bullet/đoạn About/link/màu/size, đối chiếu conflict, viết draft, tự kiểm bằng script và xuất bản nộp (text + HTML).",
+  "displayName": "Create Content — PDP & Category hàng loạt",
+  "description": "Sản xuất nội dung hàng loạt theo quy trình team content: trang sản phẩm (PDP) cho discount-equestrian.co.uk (skill pdp-content: Riding Body Protector, Riding Hat, ngành mới theo file Word) và trang category cho wholesalehats.com (skill category-content: 5 template T1–T5, mô hình internal link từ file internal linking, fact bank, QA máy, xuất .docx).",
   "author": {
     "name": "Phuc Tran Tuan",
     "email": "phuc.trantuan@hawee.com.vn"
@@ -17,6 +17,8 @@
     "seo",
     "equestrian",
     "body-protector",
-    "riding-hat"
+    "riding-hat",
+    "category",
+    "wholesalehats"
   ]
 }

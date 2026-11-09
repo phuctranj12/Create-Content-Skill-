@@ -10,9 +10,9 @@
   "plugins": [
     {
       "name": "create-content",
-      "displayName": "Create Content — PDP hàng loạt",
+      "displayName": "Create Content — PDP & Category hàng loạt",
       "source": "./plugins/create-content",
-      "description": "Sản xuất nội dung trang sản phẩm (PDP) hàng loạt cho discount-equestrian.co.uk theo quy trình chuẩn, bắt đầu với Riding Body Protector.",
+      "description": "Sản xuất nội dung hàng loạt theo quy trình team content: trang sản phẩm (PDP) cho discount-equestrian.co.uk (skill pdp-content: Riding Body Protector, Riding Hat, ngành mới theo file Word) và trang category cho wholesalehats.com (skill category-content: 5 template T1–T5, mô hình internal link từ file internal linking, fact bank, QA máy, xuất .docx).",
       "author": {
         "name": "Phuc Tran Tuan"
       },
@@ -20,7 +20,15 @@
       "repository": "https://github.com/phuctranj12/Create-Content-Skill-",
       "license": "MIT",
       "category": "productivity",
-      "keywords": ["content", "pdp", "product-description", "ecommerce", "equestrian"]
+      "keywords": [
+        "content",
+        "pdp",
+        "product-description",
+        "ecommerce",
+        "equestrian",
+        "category",
+        "wholesalehats"
+      ]
     }
   ]
 }

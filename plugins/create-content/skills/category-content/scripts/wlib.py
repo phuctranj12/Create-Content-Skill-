@@ -18,6 +18,29 @@ BANNED_PHRASES = [
     "the best", "#1", "number one", "unbeatable", "world's best", "world’s best",
     "looking for", "click here", "see more", "this style",
 ]
+# Phần 1 mục 6.2: hạn chế cấu trúc so sánh phủ định (chỉ WARN, không cấm tuyệt đối)
+SOFT_PHRASES = ["rather than", "instead of"]
+
+LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+
+def entity_format(stt):
+    """Phần 1 mục 5.2: STT lẻ -> văn xuôi, STT chẵn -> bullet."""
+    if stt is None:
+        return None
+    return "bullet" if stt % 2 == 0 else "prose"
+
+def sections(text):
+    """Split a draft into [(h2_title or '', [lines])] by '## ' headings."""
+    out, cur, buf = [], "", []
+    for ln in text.splitlines():
+        if ln.startswith("## "):
+            out.append((cur, buf)); cur, buf = ln[3:].strip(), []
+        elif ln.startswith("# "):
+            continue
+        else:
+            buf.append(ln)
+    out.append((cur, buf))
+    return out
 
 def utf8():
     try:
@@ -47,6 +70,19 @@ class Row(object):
             if all(s.lower() in kl for s in subs) and val:
                 out.append(val)
         return out
+    def getprefix(self, prefix):
+        """Values of columns whose header STARTS with prefix, in column order.
+        ('Link Brand con 1..12' but not 'Số link Brand con')."""
+        p = prefix.lower()
+        return [v for k, v in self.d.items() if k.lower().startswith(p) and v]
+    @property
+    def brand_cons(self): return self.getprefix("link brand con")
+    @property
+    def stt(self):
+        try:
+            return int(float(self.get("stt") or self.get("no.")))
+        except ValueError:
+            return None
     @property
     def name(self): return self.get("tên danh mục") or self.get("category name")
     @property
