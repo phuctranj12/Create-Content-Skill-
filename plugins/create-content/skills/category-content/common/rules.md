@@ -6,11 +6,13 @@
 | Spec, fit, chất liệu, màu, size, fact brand | **Website brand** (vd richardsonsports.com). KHÔNG lấy từ text đang có trên wholesalehats.com |
 | Số SKU | Số hiển thị trên trang category tại wholesalehats.com |
 | URL danh mục, anchor homepage, quan hệ cha–con, link bắt buộc | **FILE (2) internal linking** (script `links.py` tự giải) |
-| SKU có thật trên site (để nêu ở FAQ) | FILE (3) Onpage_PDPs (tab PDPs), đối chiếu cột SKU. KHÔNG lấy spec/màu/size từ các cột Product specifications, Color, Size range của file này, KHÔNG dùng để xác định sản phẩm thuộc category nào |
+| SKU có thật trên site (để nêu ở FAQ) | FILE (3) Onpage_PDPs (tab PDPs), đối chiếu cột SKU. Không dùng để xác định sản phẩm thuộc category nào |
+| Spec/màu/size **khi website brand không có** (size chart chỉ có ảnh, brand không có trang cho SKU…) | Các cột Product specifications, Color, Size range của FILE (3) và cột "Số sản phẩm" của FILE (2) — **nguồn dự phòng do người giao task cho phép (2026-11-09)**. Website brand vẫn ưu tiên; Excel lệch brand thì theo brand và ghi mục F |
 | Định nghĩa loại mũ, performance, customization | `product-guideline.md` |
 | Đặc điểm nêu trong "Shop by.../Other... to explore" | Nội dung hiện có trên chính trang category đó (mở nhanh trang để lấy) |
 
-- Không bịa. Thiếu nguồn → ghi `[INPUT: cần nguồn]` / `[INPUT: cần ảnh size chart]`, báo người giao task.
+- Không bịa. Thứ tự khi thiếu: website brand → Excel (FILE 3 tab PDPs, FILE 2) → `[INPUT: cần nguồn]` / `[INPUT: cần ảnh size chart]`, báo người giao task. Fact lấy từ Excel ghi rõ nguồn (tên file, tab, cột, SKU) trong bảng fact và mục A.
+- Số SKU trong bài vẫn lấy theo trang category trên wholesalehats.com (cột "Số sản phẩm" của FILE 2 đếm theo biến thể, không dùng cho SAPO).
 - Suy luận (7.3): chỉ suy ra **lợi ích** từ đặc điểm vật lý có thật, dùng hedge (typically, generally, tends to); KHÔNG suy ra thông số/đặc điểm mới.
 - SKU (7.4): hạn chế nêu tên model/SKU ở section chính (What defines/What is, Color, Size, Best customization): viết khái quát cho cả dải; chỉ nêu 1 sản phẩm cụ thể khi nó có điểm khác mà phần còn lại không có, và **tối đa 3 SKU** (Bước 5 QA: >3 thì xóa). FAQ được nêu SKU làm ví dụ/so sánh, nhưng SKU phải có trong FILE (3) hoặc trên site.
 - Product guideline: các cụm "thường đi cùng…" chỉ là xu hướng, không dùng làm đặc điểm của trang nếu nguồn của trang không xác nhận. Tên danh mục + spec của trang thắng định nghĩa chung khi mâu thuẫn (vd Fitted Trucker Hats là trucker có fit dạng fitted). Realtree®/Mossy Oak® dùng định nghĩa Camo, kèm tên thương hiệu họa tiết.

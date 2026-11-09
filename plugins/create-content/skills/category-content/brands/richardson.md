@@ -25,8 +25,9 @@ Lập ngày 2026-11-09 từ richardsonsports.com. Kiểm lại nếu website bra
 | --- | --- | --- |
 | R-Flex XS-SM / SM-MD / LG-XL | 6 5/8–6 7/8 / 7–7 1/4 / 7 3/8–7 5/8 | Bài PTS từng ghi XS-SM là 6 5/8–7, các bài khác 6 5/8–6 7/8 |
 | Youth (PTS20/PTS30) | 6 3/8–6 5/8 | |
-| Adjustable OSFM | khoảng 21 1/4" đến 24 1/4" (54 đến 62 cm) | |
-| SM, MD-LG (adjustable) | chưa đọc được | `[INPUT: cần ảnh size chart]` |
+| Adjustable OSFM | hat size 7 đến 7 3/4 | Excel theo dõi, tab PDPs, Size range (258, 935). Các bài 256/Camo cũ ghi 21 1/4" đến 24 1/4" (54 đến 62 cm): nên thống nhất |
+| SM / MD-LG (adjustable, R-Flex Adjustable) | 6 1/2 đến 7 / 7 đến 7 3/4 | Excel theo dõi, tab PDPs, Size range (220, 110). Dòng 110 ghi OSFM/MD-LG/SM, lệch brand (R-Flex SM-MD/LG-XL): theo brand |
+| Mossy Oak trên Richardson | Colorway Mossy Oak Bottomland, Mossy Oak Country DNA (112PC, 112PM, 111P, 168P) | Excel theo dõi, tab PDPs, Color |
 
 ## Mâu thuẫn đã gặp
 

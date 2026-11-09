@@ -54,7 +54,10 @@ thiếu URL → flag `[INPUT]`, không bịa. Trang không có trong CSV → ghi
 - Bài đã submit cùng brand (folder "WH _ Category content") đọc được để giữ nhất quán dữ liệu (vd số
   đo từ ảnh size chart) và để **tránh trùng câu chữ**, không chép cách diễn đạt.
 - Câu phân biệt ở "Shop by.../Other... to explore": mở nhanh chính trang category được nhắc tới.
-- Thiếu/không đọc được (size chart dạng ảnh…) → `[INPUT: cần ảnh size chart]` / `[INPUT: cần nguồn]`, không suy đoán.
+- Thiếu/không đọc được trên website brand (size chart dạng ảnh, SKU không có trang…) → tra Excel trước:
+  `$OUT/pdps.csv` (cột Product specifications, Color, Size range theo SKU) và FILE (2). Có thì dùng, ghi
+  nguồn "Excel" vào bảng fact/mục A; Excel lệch website brand thì theo brand, ghi mục F. Không có ở cả hai
+  → `[INPUT: cần ảnh size chart]` / `[INPUT: cần nguồn]`, không suy đoán.
 
 ## 2b. Bản phân tích — dừng chờ duyệt
 Trả bản phân tích theo `common/analysis-template.md` cho từng trang (mục A–F), gom mọi `[INPUT]` hỏi
